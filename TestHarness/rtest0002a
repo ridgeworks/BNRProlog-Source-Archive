@@ -1,0 +1,44 @@
+	/*******************************************************\
+	*							*
+	*	BNR Prolog Regression Test Suite:		*
+	*	================================		*
+	*							*
+	*	Program:	Unification test 'a'		*
+	*	Version:	2.10				*
+	*	File:		RTEST0002.3			*
+	*	Written:	I Sykes		Date: 24/06/97	*
+	*	Revised:			Date:		*
+	*							*
+	*							*
+	*	Main predicate is 'unify_a'			*
+	*							*
+	\*******************************************************/
+
+
+
+
+%	Simple unification test:  Runs the test terms through variations of basic unification.
+%	-----------------------
+
+	unify_a:-
+		write("\nStart simple unification test...\n"),
+		ts(_,Z1,X),
+		test_type(W),
+		write("\n",W,"\t"),
+		test_unify(W,X,Y) ->
+			write(Z1,"\tPASSED","\t\t",X);
+			write(Z1,"\tFAILED","\t\t",X),
+		fail.
+	unify_a:- write("\nSimple unification tests completed.\n").
+
+
+
+
+%	Load test data as required:
+%	==========================
+	$initialization:- load_test_data.
+
+		load_test_data:-
+			not(context("rtest0002t")),
+			load_context("rtest0002t").
+		load_test_data.	

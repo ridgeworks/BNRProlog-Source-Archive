@@ -1,0 +1,131 @@
+#
+#  $Header: /disc9/sniff/repository/BNRProlog/source/RCS/HSCheadWriteMacros.incl,v 1.1 1997/12/22 17:01:21 harrisj Exp $
+#
+#  $Log: HSCheadWriteMacros.incl,v $
+# Revision 1.1  1997/12/22  17:01:21  harrisj
+# Added support for HSC and to build HSC and non-HSC BNRP
+#
+#
+#
+
+
+define(HEAD_WRITE_UTILS,`
+lookup:
+   mflr		r6			# get link register
+   stw		r6,60(SP)		# save LR in stack
+   addi		ppc,ppc,1
+   stw		ppc,92(temp)
+   addi		r3,temp,92
+   stw		r12,88(temp)		# expect hp in r12
+   addi		r4,temp,88
+   stw		te,72(temp)
+   addi		r5,temp,72
+   bl		.BNRP_lookupStateSpace{PR}
+   nop
+   cmpwi	r3,0
+   beq		Fail
+   lwz		te,72(temp)
+   lwz		ppc,92(temp)
+   addi		ppc,ppc,-1
+   lwz		r6,60(SP)		# retrieve LR from stack
+   mtspr	LR,r6			# reload LR
+   blrl')
+
+define(GET_ENV_EXT, `
+   addi		ppc,ppc,4
+   clrrwi	ppc,ppc,2
+   lwz		$1,0(ppc)
+   addi		ppc,ppc,3')
+
+define(WEND_SEQ, `
+   li		r12,0			# load zero value
+   stw		r12,0(hp)		# store 0 in hp
+   addi		hp,hp,4			# increment hp
+   b		Head')
+
+define(WUNIFY_NIL, `
+   lwz		r12,64(temp)
+   stw		r12,0(hp)
+   addi		hp,hp,4')
+
+
+define(WUNIFY_VARP_TCB, `
+   lbzu		r9,1(ppc)
+   cmpwi	r9,0
+   bne		wunify_varp_done
+   GET_ENV_EXT(r9)
+wunify_varp_done:
+   PUSH_VARP(r9)')
+
+define(WUNIFY_VALP_TCB, `
+   lbzu		r9,1(ppc)
+   cmpwi	r9,0
+   bne		wunify_valp_done
+   GET_ENV_EXT(r9)
+wunify_valp_done:
+   PUSH_VALP(r9)')
+
+define(WTUNIFY_VART,`
+   TPUSH_VART($1)
+   b		Head')
+
+define(WTUNIFY_VART_TCB, `
+   TPUSH_VART_TCB
+   b		Head')
+
+define(WTUNIFY_VARP,`
+   TPUSH_VARP(r9)
+   b		Head')
+
+define(WTUNIFY_VARP_TCB, `
+   lbzu		r9,1(ppc)
+   cmpwi	r9,0
+   bne		wtunify_varp_done
+   GET_ENV_EXT(r9)
+wtunify_varp_done:
+   TPUSH_VARP(r9)
+   b		Head')
+
+define(WTUNIFY_VALT, `
+   clrlwi	r12,$1,3		# strip tag bits
+   oris		r11,r12,0x2000		# put in address bits (same as TVTAG)
+   stw		r11,0(hp)		# store on hp
+   addi		hp,hp,4
+   li		r11,0
+   stw		r11,0(hp)
+   oris		r11,r12,0xa000		# put in list tag
+   mr		$1,r11			# move list term into reg
+   b		Head')
+
+define(WTUNIFY_VALT_TCB, `
+   lbzu		r9,1(ppc)
+   addi		r12,temp,124
+   rlwinm	r9,r9,2,22,31
+   lwzx		r9,r12,r9
+   WTUNIFY_VALT(r9)')
+
+define(WTUNIFY_VALP, `
+   TPUSH_VALP($1)
+   b		Head')
+
+define(WTUNIFY_VALP_TCB, `
+   TPUSH_VALP_TCB
+   b		Head')
+
+define(WUNIFY_CONS_BY_VALUE, `
+   li		r12,0
+   stw		r12,0(hp)			# space for tailvar if needed
+   addi		hp,hp,4
+   mr		r12,hp				# store old hp in r12
+   bl		lookup				# lookup constant into r3
+   lwz		r11,88(temp)
+   cmpw		r11,hp
+   beq		UnifyVal_backup
+   stw		r3,0(r11)			# place value on heap
+   stw		r11,-4(hp)			# make tvar to point to it
+   addi		hp,r11,4
+   b		UnifyVal_done
+UnifyVal_backup:
+   stw		r3,-4(hp)
+UnifyVal_done:')
+

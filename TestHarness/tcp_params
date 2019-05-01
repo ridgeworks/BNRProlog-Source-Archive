@@ -1,0 +1,28 @@
+%  Connection data for BNRProlog Regression tests:
+%   ---------------------------------------------
+
+s_port(orchestrator,Host,20790):-host(orc,Host),!.
+s_port(evaluater,Host,20800):-host(evl,Host),!.
+c_port(tst,evl,Host,20810):-host(evl,Host),!.
+c_port(ref,evl,Host,20820):-host(evl,Host),!.
+c_port(orc,tst,Host,20830):-host(tst,Host),!.
+c_port(orc,ref,Host,20840):-host(ref,Host),!.
+c_port(evl,orc,Host,20850):-host(orc,Host),!.
+
+/*
+host(Component,Host name or IP address)
+*/
+host(tst,"localhost").
+host(evl,"localhost").
+host(ref,"localhost").
+host(orc,"localhost").
+
+/*
+delay(Polling delay in seconds)
+*/
+delay(1).
+
+/*
+timeout(Time in seconds)
+*/
+timeout(100).

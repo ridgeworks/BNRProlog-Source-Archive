@@ -1,0 +1,1490 @@
+#
+#  $Header: /disc9/sniff/repository/BNRProlog/source/RCS/HSCheadMacros.incl,v 1.5 1998/08/13 04:21:30 csavage Exp $
+#
+#  $Log: HSCheadMacros.incl,v $
+# Revision 1.5  1998/08/13  04:21:30  csavage
+# *** empty log message ***
+#
+# Revision 1.4  1998/08/13  03:58:06  csavage
+# *** empty log message ***
+#
+# Revision 1.3  1998/06/05  06:04:28  csavage
+# Fix to HSC for recall function core-dump SR,
+#
+# Revision 1.2  1998/03/10  07:08:52  harrisj
+# Unification of floats and longs in neck wasn't aligning the values
+# correctly prior to unification
+#
+# Revision 1.1  1997/12/22  17:01:19  harrisj
+# Added support for HSC and to build HSC and non-HSC BNRP
+#
+#
+#
+
+
+define(HEAD_UTILS,`
+Vcons:
+   mr		r11,r12
+   lwz		r12,0(r11)				# get what var points to
+   cmpwi  	r12,0					# check to see if bound
+   ble		Econs					# var is bound
+   oris		r12,r12,0x2000				# set address bit of var
+   cmpw		r12,r11					# if same then unbound
+   bne		Vcons					# chase var
+   beq		Bndcons
+Econs:
+   addi		ppc,ppc,4
+   clrrwi	ppc,ppc,2
+   lwz		r3,0(ppc)				# load constant
+   addi		ppc,ppc,3				# increment ppc
+   cmpw		r3,r12					# if constants are the same then done
+   bne		Ext_eq					# constant could be a long int or float
+   b		Head
+Unwdc:
+   mr		stp,r12
+   lwz		r12,0(stp)
+   addi		stp,stp,4
+   cmpwi	r12,0
+   ble		Econs
+TVcons:
+   andis.	r0,r12,0x2000			# is it a TVAR
+   bne		TVcons_TV
+   oris		r12,r12,0x2000
+   b		Vcons
+TVcons_TV:
+   QFREETV(r12,Unwdc,stp)
+   addi		ppc,ppc,4
+   clrrwi	ppc,ppc,2
+   lwz		r6,0(ppc)				# load constant
+   addi		ppc,ppc,3				# increment ppc
+   b		Bndstp
+UtermsT:
+   GET_TCB_TERM(r3)
+   cmpwi	r12,0
+   blt		Utermnv
+   b		Utermv
+UtermsP_align:
+   addi		ppc,ppc,4				# word align it
+   clrrwi	ppc,ppc,2
+   addi		ppc,ppc,-1				# set ppc correctly
+UtermsP:
+   lbzu		r3,1(ppc)				# get var index from code stream
+   cmpwi	r3,0
+   beq		UtermsP_align
+   rlwinm	r3,r3,2,22,31			# multiply offset by 4
+   lwzx		r3,ce,r3				# get env variable
+   cmpwi	r12,0
+   blt		Utermnv
+   b		Utermv
+Unwind:
+   mr		stp,r12
+Gterm:
+   lwz		r12,0(stp)
+   addi		stp,stp,4
+   cmpwi	r12,0
+Uterm:
+   blt		Utermnv					# nonvar
+   beq		Fail					# premature end_seq
+Utermtv:
+   TAILVAR(r12,Utermv)					# check for tailvars
+   QFREETV(r12,Unwind,stp)
+   addi		r0,hp,-4
+   cmpw		stp,r0
+   bne		Utermtv_heapend
+   cmpw		stp,bh
+   ble		Utermtv_heapend
+   addi		stp,stp,4
+   stw		r3,-4(hp)				# unify the term
+   b		HeadWrite
+Utermtv_heapend:
+   bl		Bindstp
+   stw		r3,0(hp)
+   addi		hp,hp,4
+   li		r3,0
+   stw		r3,0(hp)
+   b		HeadWrite
+Utermv:
+   DREFV(r12,r4,U7var)
+Utermnv:
+   DREF(r3,r4,U0var)
+   cmpw		r3,r12
+   beq		InterpreterLoop
+   CASETRM(r12,Lst7,Str7)
+   b		Fail
+U0var:
+   mr		r4,r3
+   mr		r3,r12
+   b		Bindgv
+U7var:
+   DREF(r3,r4,Bothvar)
+Bnd7:
+   mr		r4,r12
+   b		Bindgv
+Lst7:
+   LIST(r3,Fail)
+   stw		r3,0(sp)
+   stw		r12,4(sp)
+   addi		sp,sp,8
+   b		InterpreterLoop
+Str7:
+   STRUCT(r3,Fail)			# make sure we have a struct
+   lwz		r4,0(r3)		# get struct header
+   cmpwi	r4,0
+   bgt		Uxnum			# is a number
+   addi		r3,r3,4
+   stw		r3,0(sp)		# push address of first element
+   lwz		r10,0(r12)		# get struct header
+   addi		r12,r12,4
+   stw		r12,4(sp)		# push address of first element
+   addi		sp,sp,8			# increment sp
+   cmpw		r4,r10			# check arities
+   beq		InterpreterLoop
+   clrlwi	r4,r4,16		# get arity
+   clrlwi	r10,r10,16		# get arity
+   extsh	r4,r4			# sign extend the arities
+   extsh	r10,r10
+   cmpwi	r4,0			# if both negative then mark
+   blt		Str7_check
+   cmpwi	r10,0
+   bge		Fail			# both are positive
+   add.		r0,r4,r10
+   cmpwi	r0,-1			# compatible if >= -1
+   bge		InterpreterLoop
+   b		Fail
+Str7_check:
+   cmpwi	r10,0
+   blt		InterpreterLoop	# both negative - arity compatible
+   add.		r0,r4,r10
+   cmpwi	r0,-1			# compatible if >= -1
+   bge		InterpreterLoop
+   b		Fail
+Bothvar:
+   cmpw		r3,r12					# bind older to younger
+   beq		Head
+   bgt		Bothvar_try
+   mr		r0,r3
+   mr		r3,r12
+   mr		r12,r0					# exchange registers
+Bothvar_try:
+   mr		r10,r12					# r10 will hold addr of var
+   clrlwi	r12,r12,3				# clear addr bits of r12
+   lwz		r0,4(r3)				# get constraint mark
+   cmpwi	r0,CONSTRAINTMARK
+   bne		U0var
+   addi		r4,r3,4					# check for var at end of heap
+   cmpw		r4,hp
+   beq		U0var
+   lwz		r0,8(r3)				# get constraints
+   stw		r0,0(hp)				# save constraints for possible use later
+   mr		r0,r3
+   mr		r3,r12
+   mr		r12,r0					# try other way
+   mr		r10,r12					# r10 will hold addr of var
+   clrlwi	r12,r12,3				# clear addr bits of var
+   oris		r3,r3,0x2000			# get addr of var NEW
+   cmpw		hp,r3
+   ble		U0var
+   lwz		r0,4(r3)				# get constraint mark
+   cmpwi	r0,CONSTRAINTMARK
+   bne		U0var
+   lis		r4,STRUCTHEADER			# make a struct
+   addi		r4,r4,5
+   stw		r4,0(hp)				# place in heap
+   lwz		r4,combineVarAtomTC(RTOC)
+   lwz		r4,0(r4)
+   stw		r4,4(hp)				# place in heap
+   stw		r3,8(hp)				# place var in heap
+   lwz		r4,8(r3)				# get constraints
+   stw		r4,12(hp)				# push constraints
+   stw		r10,16(hp)				# push other var
+   lwz		r4,8(r10)				# get constraints
+   stw		r4,20(hp)				# store constraints
+   li		r4,0
+   stw		r4,24(hp)				# endseq
+   oris		r11,hp,STRUCTTAG			# make a structure tag
+   addi		hp,hp,28				# increment heap pointer
+   QAPPEND(r12,r11,hp)				# add goal to constraint list
+   lwz		r3,BNRPflagsTC(RTOC)	# get BNRPflags
+   lwz		r4,0(r3)
+   ori		r4,r4,0x02
+   stw		r4,0(r3)				# set constraint bit
+   b		Head
+Ext_eq:
+   andis.	r4,r3,0x4000			# is atm bit of constant set
+   bne		Fail
+   STRUCT(r12,Fail)				# if not a structure fail
+   clrlwi	r3,r3,1				# clear sgn bit
+   oris		r3,r3,0x2000			# insert address bit
+   lwz		r4,0(r3)			# get struct header
+   cmpwi	r10,0				# if end of struct
+   ble		Fail
+Uxnum:
+   andi.	r9,r4,0xFFFF			# get arity
+   lwz		r7,0(r12)			# get header
+   cmpw		r7,r4				# the 2 headers should be the same
+   bne		Fail
+   ALIGN_VALUES(r9,r12,r3)
+Uxnum_loop:
+   lwzu		r8,4(r12)
+   lwzu		r7,4(r3)
+   cmpw		r8,r7
+   bne		Fail
+   addic.	r9,r9,-1
+   bgt		Uxnum_loop
+   b		Head
+Bndcons:
+   addi		ppc,ppc,4
+   clrrwi	ppc,ppc,2
+   lwz		r11,0(ppc)
+   addi		ppc,ppc,3
+   BIND(r12,r11)			# bind the variable r5 to constant in r4
+   b		Head
+Bindgv:
+   BIND(r4,r3)
+   b		InterpreterLoop
+Bindstp:
+   mflr		r6			# get link register
+   stw		r6,60(SP)		# save LR in stack
+   PREPTV(stp,r5)
+   mr		stp,r5
+   oris		r0,hp,0x2000
+   stw		r0,0(stp)
+   lwz		r6,60(SP)		# retrieve LR from stack
+   mtspr	LR,r6			# reload LR
+   blrl						# branch to caller
+Bndstp:
+   mr		r12,stp
+   PREPTV(r12,r5)
+   oris		r0,hp,0x2000	# tag as tailvar
+   stw		r0,0(stp)		# bind tailvar to point to hp
+   stw		r6,0(hp)		# constant (or var) on list
+   addi		hp,hp,4
+   b		HeadWrite		# start write mode
+Vnil:
+   UNBOUND(r4,r11,Eqnil)
+   lwz		r3,64(temp)	# load emptyList
+   oris		r4,r4,0x2000
+   b		Bindgv
+Gnil:
+   cmpwi	r4,0			# is it a var?
+   bgt		Vnil
+Eqnil:
+   lwz		r12,64(temp)	# load emptyList
+   cmpw		r4,r12			# if emptyList then done
+   beq		Head
+   LIST(r4,Fail)
+Uwndend:
+   mr		r5,r4
+Uend:
+   lwz		r4,0(r5)		# chase chain of tvars
+   cmpwi	r4,0
+   beq		Head			# found endseq
+   blt		Fail			# not a tailvar
+   TAILVAR(r4,Fail)			# possible tailvar
+   cmpw		r4,r5			# is tailvar bound?
+   bne		Uwndend
+   li		r4,0			# load endseq
+   BINDTV(r5,r4)			# bind tailvar to endseq (special case)
+   b		Head
+Uwndnil:
+   mr		stp,r4
+Unil:
+   lwz		r4,0(stp)
+   addi		stp,stp,4
+   cmpwi	r4,0
+   ble		Eqnil
+   TAILVAR(r4,Vnil)
+   QFREETV(r4,Uwndnil,stp)
+   lwz		r6,64(temp)
+   b		Bndstp      
+RunifVarp:
+   rlwinm	r11,r11,2,22,31	# multiply env offset by 4
+RunifVarp_loop:
+   lwz		r9,0(stp)		# get value
+   addi		stp,stp,4
+   cmpwi	r9,0
+   beq		Fail			# premature end of sequence
+   stwx		r9,ce,r11		# store in arg
+   blt		InterpreterLoop	# done
+   andis.	r0,r9,0x2000	# If a variable then done
+   beq		InterpreterLoop
+   lwz		r0,0(r9)		# if not self referencing, loop
+   cmpw		r0,r9
+   mr		stp,r9
+   bne		RunifVarp_loop	# chase tailvar
+   bl		Bindstp
+   clrlwi	r9,hp,3			# make a variable from heap place in arg
+   stw		r9,0(hp)		# place onto heap
+   addi		hp,hp,4
+   li		r0,0
+   stw		r0,0(hp)		# in case of constraints
+   stwx		r9,ce,r11		# store in arg
+   b		HeadWrite')
+
+
+
+
+define(NECK_UTILS,`
+Gunify:
+   stw		hp,88(temp)		# save sp
+   lwz		hp,56(temp)		# hp becomes read-head for associative memory
+   subi		hp,hp,4			# make it easier to read by using lwzu
+   li		r12,0
+   li		r11,0
+   b		Unext
+Ufail:
+   lwz		hp,88(temp)
+   b		Fail
+Ufinish:
+   lwz		hp,88(temp)		# reload hp
+   lbz		r0,0(ppc)		# neck or neckcon?
+   cmpwi	r0,0
+   lwz		sp,56(temp)		# clear sp
+   bne		Ncon			# in neckcon, check for constraints
+   lwz		r3,headCountTC(RTOC)	# increment number of logical inferences
+   lwz		r4,0(r3)
+   addi		r4,r4,1
+   stw		r4,0(r3)
+   b		Body
+End0:
+   DREFTV(stp,r9,Ufail,Ufail,Udone)
+Uendseq:
+   li		r8,0				# end of seq
+   b		Ubindte
+Bnda2:
+   addi		stp,stp,-4
+Ubindt2:
+   mr		r4,r5				# move stp2 into scratch
+   mr		r5,stp				# move stp into stp2
+   mr		stp,r4				# move stp2 into stp
+Ubindt1:
+   mr		r8,r5
+Ubindte:
+   stw		r8,0(stp)			# bind the variable
+   lwz		r4,4(stp)			# is this constrained?
+   cmpwi	r4,CONSTRAINTMARK
+   bne		Ubindte_notcns
+   lwz		r5,88(temp)			# move hp into stp2
+   addi		r8,stp,4
+   cmpw		r8,r5
+   beq		Ubindte_notcns
+   lwz		r0,8(stp)
+   QAPPEND(stp,r0,r5)		# activate constraint
+   stw		r5,88(temp)				# update heap pointer
+   lwz		r3,BNRPflagsTC(RTOC)	# get BNRPflags   
+   lwz		r4,0(r3)
+   ori		r4,r4,0x02
+   stw		r4,0(r3)				# set constraint bit
+Ubindte_rstor:
+   mr		stp,r8
+Ubindte_notcns:
+   cmpw		stp,bh					# is it lower than critical?
+   bge		Udone
+   stwu		stp,-4(te)				# push old value on trail
+   stwu		stp,-4(te)				# push address on trail
+Udone:
+   addi		r0,hp,4
+   cmpw		r0,sp					# check to see if done
+   beq		Ufinish
+Unext:
+   lwzu		stp,4(hp)				# get pair of addresses from pushdown stack
+   lwzu		r5,4(hp)
+   b		Uniflp
+Uvtov:
+   cmpw		r8,r9					# bind higher addr to lower
+   bgt		Uvtov_U0
+   beq		Uniflp					# nothing to do
+Uvtov_U7:
+   mr		r4,r8
+   mr		r8,r9
+   mr		r9,r4					# exchange r8 and r9
+Uvtov_U0:
+   mr		r6,r8					# check for constraint on r8 side
+   clrlwi	r9,r9,3					# clear address bits
+   stw		r9,0(r6)				# now r8=>r9
+   lwz		r3,4(r6)				# check constraint mark
+   cmpwi	r3,CONSTRAINTMARK
+   bne		Trlchk
+   addi		r4,r6,4					# check for var at end of heap
+   cmpw		r4,hp
+   beq		Trlchk
+   clrlwi	r4,r6,3					# make into addr
+   stw		r4,0(r6)				# restore it
+   stw		r3,0(hp)				# get constraint
+   oris		r9,r9,0x2000			# put in addr bits
+   mr		r4,r8
+   mr		r8,r9
+   mr		r9,r4					# exchange r8 and r9
+   mr		r6,r8					# r6=r8
+   clrlwi	r9,r9,3					# clear addr bits
+   stw		r9,0(r6)				# r8 => r9
+   lwz		r3,4(r6)				# get constraint mark
+   cmpwi	r3,CONSTRAINTMARK
+   bne		Trlchk
+   clrlwi	r4,r6,3					# clear addr bits
+   stw		r4,0(r6)				# restore it so r8 and r9 distinct
+   lis		r4,STRUCTHEADER
+   addi		r4,r4,5					# get a structure of arity 5
+   stw		r4,0(hp)
+   lwz		r4,combineVarAtomTC(RTOC)
+   lwz		r4,0(r4)
+   stw		r4,4(hp)
+   stw		r8,8(hp)
+   lwz		r4,8(r8)
+   stw		r4,12(hp)
+   stw		r9,16(hp)
+   lwz		r4,8(r9)
+   stw		r4,20(hp)
+   li		r4,0
+   stw		r4,24(hp)				# endseq
+   mr		r8,hp				# get start of structure
+   addi		hp,hp,28
+   oris		r8,r8,STRUCTTAG
+   QAPPEND(r9,r8,hp)				# add goal to constraint list
+   lwz		r3,BNRPflagsTC(RTOC)	# get BNRPflags   
+   lwz		r4,0(r3)
+   ori		r4,r4,0x02
+   stw		r4,0(r3)				# set constraint bit
+   b		Uniflp   
+Ubind7:
+   mr		r4,r8
+   mr		r8,r9
+   mr		r9,r4					# exchange r8 and r9
+Ubind0:
+Ubindv:
+   stw		r9,0(r6)				# bind the variable r8 to point to r9
+   lwz		r0,4(r6)				# check for constraints
+   cmpwi	r0,CONSTRAINTMARK
+   bne		Trlchk
+   addi		r9,r6,4					# check for var at end of heap
+   cmpw		r9,r5
+   beq		Trlchk
+   mr		r9,r5					# save r5 into r9 so to use r5 for heap ptr
+   lwz		r5,88(temp)
+   lwz		r0,8(r6)
+   QAPPEND(r6,r0,r5)		# activate the constraint
+   stw		r5,88(temp)
+   mr		r5,r9
+   lwz		r3,BNRPflagsTC(RTOC)	# get BNRPflags   
+   lwz		r4,0(r3)
+   ori		r4,r4,0x02
+   stw		r4,0(r3)				# set constraint bit
+Trlchk:
+   cmpw		r8,bh					# is stp lower than critical
+   bge		Uniflp
+   TRAIL(r8,r0)						# trail r8
+Uniflp:
+   CHECK_SP
+   cmpw		stp,r5					# are the pointers the same?
+   beq		Udone					# yes so these are equal
+   lwz		r8,0(r5)				# get value
+   addi		r5,r5,4
+   cmpwi	r8,0					# non-var
+   blt		Nv0
+   beq		End0
+   andis.	r0,r8,0x2000			# is it a tailvar?
+   beq		Mv0
+   addi		r5,r5,-4				# a tailvar; back up one cell
+   cmpw		r5,r8					# check for self reference
+   beq		Tvar2
+   bgt		Lpchk
+   mr		r5,r8
+   b		Uniflp					# unwind tailvar
+Lpchk:
+   mr		r9,stp
+   li		stp,0					# zero stp to signal end of seq
+   b		Cycchk					# cyclic check
+End7:
+   li		r8,0					# bind tv at r5 to 0
+   mr		stp,r5
+   b		Ubindte
+Tvar2:
+   DREFTV(stp,r9,Bnda2,Bnda2,End7)
+   # both tvars - bind them and begin next seq
+   cmpw		stp,r5					# bind higher to lower
+   beq		Udone   				# if = do nothing and start new seq
+   bgt		Tvar2_Ubdt1				# branch if stp is bigger
+Tvar2_flip:
+   mr		r4,stp
+   mr		stp,r5
+   mr		r5,r4					# exchange stp and r5
+Tvar2_Ubdt1:						# bind tailvar stp to tailvar r5
+   lwz		r0,4(stp)				# check for constraints
+   cmpwi	r0,CONSTRAINTMARK
+   beq		Tvar2_tvcns
+Tvar2_notcns:
+   stw		r5,0(stp)				# bind the tailvar
+Tvar2_trla1:
+   cmpw		stp,bh					# is stp lower than critical?
+   bge		Udone
+   stwu		stp,-4(te)				# push old value on trail
+   stwu		stp,-4(te)				# push address on trail
+   b		Udone
+Tvar2_tvcns:						# stp (may) have constraint
+   addi		stp,stp,4
+   lwz		r6,88(temp)
+   cmpw		r0,stp
+   addi		stp,stp,-4
+   beq		Tvar2_notcns			# false alarm
+   lwz		r4,4(r5)				# try on r5
+   cmpwi	r4,CONSTRAINTMARK
+   bne		Tvar2_flip
+   oris		r8,r6,LISTTAG			# r8 is list
+   lwz		r0,8(stp)				# get constraints
+   stw		r0,0(r6)
+   addi		r6,r6,4
+   lwz		r9,8(r5)				# get constraints
+   andis.	r0,r9,0x2000			# avoid nested lists
+   bne		Tvar2_funct
+   clrlwi	r9,r9,1					# clear sign bit (list->tailvar)
+   b		Tvar2_newtv
+Tvar2_funct:
+   stw		r9,0(r6)
+   addi		r6,r6,4
+   li		r0,0
+   stw		r0,0(r6)
+   addi		r6,r6,4					# end_seq
+Tvar2_newtv:
+   oris		r9,r6,0x2000			# new tailvar
+   stw		r9,0(stp)				# bind both stp, r5 => hp
+   stw		r9,0(r5)
+   stw		r9,0(r6)
+   addi		r6,r6,4
+   li		r0,CONSTRAINTMARK
+   stw		r0,0(r6)
+   addi		r6,r6,4
+   stw		r6,88(temp)				# update heap
+   cmpw		stp,bh
+   bgt		Tvar2_trla1
+   stwu		r5,-4(te)				# push old value on trail
+   stwu		r5,-4(te)				# push address on trail
+   b		Tvar2_trla1				# trail stp if necessary
+Mv0:								# r8 was non-tvar, pos-var term
+   DREFTV(stp,r9,Mv0nv7,Mv0mv7,Ufail)		# stp is address of unbound tvar
+   addi		r5,r5,-4				# step back one call
+   b		Ubindt1
+Nv0:								# r8 was non-tvar, non-var term
+   DREFTV(stp,r9,Nv0nv7,Nv0mv7,Ufail)		# stp is address of unbound tvar
+   addi		r5,r5,-4				# step back one call
+   b		Ubindt1
+V0mv7:								# r8 is var, r9 maybe
+   DREFV(r9,r7,Uvtov)				# var r8, nonvar r9
+   b		Ubind0
+Mv0mv7:								# r8 may be a var, r9 may be a var
+   DREFV(r8,r6,V0mv7)				
+Nv0mv7:								# r8 nonvar, r9 maybe
+   DREFV(r9,r6,Ubind7)
+   b		Nv0nv7
+Mv0nv7:
+   DREFV(r8,r6,Ubindv)				# both nonvar
+Nv0nv7:
+   cmpw		r8,r9
+   beq		Uniflp
+   bgt		Nv0nv7_10
+   mr		r4,r8
+   mr		r8,r9
+   mr		r9,r4					# exchange r8 and r9 to break symmetry
+Nv0nv7_10:							# check r9 for list, structure
+   andis.	r0,r9,0x4000			# check atom bit
+   bne		Ufail
+   andis.	r0,r9,0x2000			# check list bit
+   clrlwi	r9,r9,3					# clear top 3 bits
+   oris		r9,r9,0x2000			# put address bits on	
+   beq		UStr7
+ULst7:								# r9 is list
+   LIST(r8,Ufail)
+   mr		r6,r8					# both lists
+   mr		r4,stp
+   mr		stp,r9
+   mr		r9,r4					# exchange stp and r9
+   b		sbloop
+Xnum:
+   lwz		r0,0(stp)
+   cmpw		r0,r8					# same kind of whatsit?
+   bne		Ufail					# if no - get out
+   clrlwi	r8,r8,16				# clear top 16 bits to get arity (1 or 2)
+   addi		stp,stp,4				# adjust to align properly
+   ALIGN_VALUES2(r8,r6,stp)			# align the numerics
+Xnum_loop:
+   lwz		r9,0(r6)				# compare next n longs
+   addi		r6,r6,4
+   lwz		r0,0(stp)
+   addi		stp,stp,4
+   cmpw		r9,r0
+   bne		Ufail					# must match
+   addic.	r8,r8,-1
+   bgt		Xnum_loop
+   lwzu		stp,-4(sp)				# restore stp
+   b		Uniflp					# continue
+UStr7:								# r9 is a structure
+   oris		r9,r9,0x2000			# make sure is an address
+   STRUCT(r8,Ufail)
+   mr		r6,r8
+   stw		stp,0(sp)				# save stp (dont continue until its restored)
+   addi		sp,sp,4
+   mr		stp,r9					# use stp for second structure
+   lwz		r8,0(r6)				# get struct header
+   addi		r6,r6,4
+   cmpwi	r8,0					# extended numeric?
+   bgt		Xnum
+   lwz		r9,0(stp)				# should be struct header
+   addi		stp,stp,4
+   cmpw		r8,r9					# check arities
+   beq		UStr7_rstor				# if same then continue
+   clrlwi	r3,r8,16				# get arity
+   clrlwi	r4,r9,16				# get arity
+   extsh	r3,r3					# sign extend arities
+   extsh	r4,r4
+   cmpwi	r4,0					# if both negative then compatible
+   blt		UStr7_check
+   cmpwi	r3,0
+   bge		Ufail					# both are positive
+   add.		r0,r4,r3
+   cmpwi	r0,-1					# compatible if >= -1
+   bge		UStr7_rstor
+   b		Ufail
+UStr7_check:
+   cmpwi	r3,0
+   blt		UStr7_rstor				# arity compatible
+   add.		r0,r4,r3				# compatible if >= -1
+   cmpwi	r0,-1
+   blt		Ufail
+UStr7_rstor:						# stp is still on stack but doesnt matter if fail out
+   lwzu		r9,-4(sp)				# save continuation stp in r9
+									# stp,r5 point at first item/principal functors
+sbloop:								# tight loop to compare atoms
+   lwz		r8,0(r6)				
+   addi		r6,r6,4
+   cmpwi	r8,0
+   bge		sbloop_notatom			# stop when var|tvar|end
+   lwz		r0,0(stp)
+   addi		stp,stp,4
+   cmpw		r0,r8
+   beq		sbloop					# repeat while equal
+   addi		stp,stp,-4				# not equal - back up and push
+sbloop_back0:
+   addi		r6,r6,-4
+   mr		r8,r6					# copy to r8 for bitmap test
+   mr		r0,r9
+   mr		r9,stp
+   mr		stp,r0					# restore original stp
+   b		Cycchk
+sbloop_notatom:						# check for leaf structure/list containing only constants
+   bgt		sbloop_back0			# stop if var or tvar
+   lwz		r0,0(stp)
+   cmpw		r0,r8					# else if at end
+   bne		sbloop_back0
+   mr		stp,r9					# restore old stp
+   b		Uniflp
+Cycchk:								# update and check bitmaps -r8,r9 contain addresses maybe NOT on stack
+#   lwz		r0,60(temp)				# stack check
+#   cmpw		r0,sp
+#   ble		S_full					# unsigned check
+   extrwi	r0,r8,5,8				# extract 5 bits starting at bit 8
+   subfic	r3,r0,33				# subtract r0 from 33
+   rlwnm	r11,r11,r3,0,31			# rotate right by 33-r3 bits
+   andi.	r4,r11,0x0001 			# is bit set?
+   bne		Cycchk_chk2
+   ori		r11,r11,0x0001			# set bit
+#   extrwi	r10,r9,5,8				# ??? extract 5 bits starting at bit 8
+#   subfic	r3,r10,33				# ??? subtract r10 from 33
+#   rlwnm	r12,r12,r3,0,31			# ??? rotate right by 33-r3 bits
+#   ori		r12,r12,0x0001			# ??? set bit
+Cycchk_restore:
+   rotlw	r11,r11,r0				# rotate r11 left by r0 bits to restore it
+   rotlw	r12,r12,r10				# rotate r12 left by r5 bits to restore it
+Cycchk_push:
+   stw		r8,0(sp)				# add pair back on stack
+   stw		r9,4(sp)
+   addi		sp,sp,8
+Cycchk_done:
+   cmpwi	stp,0
+   bne		Uniflp					# continue current sequence
+   b		Udone
+Cycchk_chk2:						# have seen r8 before
+   extrwi	r10,r9,5,8				# extract 5 bits starting at bit 8
+   subfic	r3,r10,33				# subtract r10 from 33
+   rlwnm	r12,r12,r3,0,31			# rotate right by 33-r3 bits
+   andi.	r4,r12,0x0001 			# is bit set?
+   beq		Cycchk_restore			# havent seen r9 before
+   ori		r12,r12,0x0001			# set bit
+   rotlw	r11,r11,r0				# rotate r11 left by r0 bits to restore it
+   rotlw	r12,r12,r10				# rotate r12 left by r10 bits to restore it
+   lwz		r6,56(temp)				# end of queue
+   subi		r6,r6,4				# subtract 4 from spbase so that lwzu can be used
+Cycchk_scan:
+    addi	r0,r6,4				# We point to the right item and sp would be the next
+   cmpw		r0,sp				# Anything more to look at?
+   beq		Cycchk_push				# must push them on stack
+   lwzu		r3,4(r6)				# left one of next pair
+   cmpw		r3,r8
+   beq		Cycchk_eq1
+   addi		r6,r6,4					# skip right
+   b		Cycchk_scan				# continue search
+Cycchk_eq1:
+   lwzu		r3,4(r6)				# right one of pair
+   cmpw		r3,r9
+   bne		Cycchk_scan				# right not equal, keep searching
+   b		Cycchk_done')
+
+define(NECK, `
+   lwz		r0,56(temp)				# get spbase
+   cmpw		r0,sp					# something to do?
+   bne		Gunify
+   lwz		r3,headCountTC(RTOC)
+   lwz		r4,0(r3)				# get neck count
+   addi		r4,r4,1
+   stw		r4,0(r3)
+   b		Body')
+
+define(RUNIFY_VOID, `
+   lwz		r12,0(stp)				# get new value
+   addi		stp,stp,4				# increment stp
+   cmpwi	r12,0					# if zero then found end_seq
+   beq		Fail
+   blt		InterpreterLoop			# nonvars are OK
+   TAILVAR(r12,InterpreterLoop)			# vars are OK
+   QFREETV(r12,Next_unify_void,stp)
+   bl		Bindstp
+   clrlwi	r12,hp,3			# strip tag bits (makes into a VAR)
+   stw		r12,0(hp)			# put new var onto heap
+   addi		hp,hp,4
+   li		r12,0
+   stw		r12,0(hp)			# clear in case of constraint marker
+   b		HeadWrite
+Next_unify_void:
+   mr		stp,r12
+   b		Runify_void')
+   
+define(REND_SEQ, `
+   lwz		r12,0(stp)
+   addi		stp,stp,4
+   cmpwi	r12,0				# if zero then found end_seq
+   beq		InterpreterLoop
+   blt		Fail
+   andis.	r11,r12,0x2000			# is it a TVAR
+   beq		Fail
+   lwz		r11,0(r12)			# get what TVAR points to
+   cmpw		r11,r12				# if not self referencing
+   bne		Next_end_seq
+   li		r10,0
+   BINDTV(r12,r10)
+   b		InterpreterLoop  
+Next_end_seq:
+   mr		stp,r12
+   b		Rend_seq')
+
+define(RUNIFY_CONS,`
+   lwz		r12,0(stp)			# get current item in sequence
+   addi		stp,stp,4			# increment stp
+   cmpwi	r12,0
+   ble		Econs				# is non var
+   b		TVcons')
+
+define(NECKCON,`
+   lwz		r12,56(temp)		# load spbase
+   cmpw		sp,r12				# if same then nothing to do
+   bne		Gunify
+Ncon:
+   lwz		r12,headCountTC(RTOC)		# get head count
+   lwz		r11,20(r12)					# neckcon count
+   addi		r11,r11,1					# increment
+   stw		r11,20(r12)					# store
+   lwz		r11,BNRPflagsTC(RTOC)		# get BNRPflags address
+   lwz		r12,0(r11)					# get BNRPflags
+   cmpwi	r12,0						# is it zero
+   bne		Prepc						# constraint
+Skpcns:
+   addi		ppc,ppc,2					# skip reg count and possible dealloc and continue
+   b		Body
+Prepc:
+   andi.	r0,r12,0x02					# is constraint bit set?
+   beq		Skpcns
+   rotrwi	r12,r12,1					# rotate flags right by 1
+   clrrwi	r12,r12,1					# clear constraint bit
+   rotlwi	r12,r12,1					# rotate back by 1
+   stw		r12,0(r11)					# store new BNRPflags value
+   lwz		r3,112(temp)				# get constraint head
+   cmpwi	r3,0						# if zero, then nothing to do
+   beq		Skpcns
+   lbz		r3,1(ppc)					# get next byte from ppc
+   cmpwi	r3,0
+   bne		Prepc_fire					# if nvars <> 0 then environment already exists
+   lbz		r3,2(ppc)					# if next opcode is dealloc then alloc
+   cmpwi	r3,6
+   bne		Prepc_fire
+   ALLOC					# allocate new environment
+   cmpw		ce,lcp
+   bge		E_full
+Prepc_fire:
+   addi		cp,ppc,1					# save return address and increment it properly
+   b		Firecnst')
+   
+define(RUNIFY_NIL,`b		Unil')
+
+define(GET_CONS_BY_VALUE,`
+   GET_TCB_TERM(r12)
+   stw		r12,64(SP)				# store on stack for now
+   mr		r12,hp					# copy hp into r12 for lookup
+   bl		lookup					# lookup constant
+   nop
+   lwz		hp,88(temp)				# reload hp
+   lwz		r12,64(SP)				# reload arg from stack
+   cmpwi	r12,0
+   b		Uterm')
+   
+define(GET_CONS,`
+   mr		r12,$1					# copy reg value
+   cmpwi	r12,0					# check to see if it is a var
+   ble		Econs					# not a var
+   oris		r12,r12,0x2000				# set address bit of var
+   b		Vcons')
+
+define(GET_CONS_TCB,`
+   lbzu		r12,1(ppc)
+   addi		r11,temp,124
+   rlwinm	r12,r12,2,22,31
+   lwzx		r12,r11,r12
+   GET_CONS(r12)')
+   
+
+   
+   
+define(GET_STRUCT,`
+   GET_STRUCT_PRIM(`counter',$1)')
+define(GET_STRUCT_PRIM,`
+   mr		r12,$2				# copy arg into r12
+   cmpwi	r12,0				# if var then unwind
+   bgt		getstrucv.$1
+getstruc.$1:
+   STRUCT(r12,Fail)
+   mr		stp,r12				# setup stp to point to list
+   lhz		r11,0(stp)			# get header
+   cmplwi	r11,STRUCTHEADER		# do we have a structheader?
+   addi		stp,stp,2			# now point to arity of struct
+   bne		Fail				# if not a structure fail
+   lbzu		r11,1(ppc)			# get arity
+   extsb	r11,r11				# sign extend
+   ARCHECK(stp,r11)				# check arity or fail
+   b		Head
+getstrucv.$1:
+   UNBOUND(r12,r11,getstruc.$1)
+   PREPV(r11,r10)
+   clrlwi	r10,hp,3			# clear tag bits
+   oris		r10,r10,STRUCTTAG		# make into a structure
+   stw		r10,0(r11)			# bind the variable
+   GETARITY(r12)				# r12 is struc tag with arity
+   stw		r12,0(hp)			# push header onto heap
+   addi		hp,hp,4				# increment heap pointer
+   define(`$1', incr($1))
+   b		HeadWrite')
+
+define(GET_STRUCT_TCB,`
+   lbzu		r11,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r11,r11,2,22,31
+   lwzx		r9,r10,r11
+   GET_STRUCT(r9)')   
+
+define(GET_LIST,`
+   GET_LIST_PRIM(`counter',$1)')
+define(GET_LIST_PRIM,`
+   mr		r12,$2				# copy arg into r12
+   cmpwi	r12,0				# if var then unwind
+   bgt		getlstv.$1
+getlst.$1:
+   LIST(r12,Fail)				# verify that it is a list
+   mr		stp,r12				# setup stp to point to list
+   b		Head				# done
+getlstv.$1:
+   UNBOUND(r12,r11,getlst.$1)
+   PREPV(r11,r10)
+   clrlwi	r10,hp,3			# strip tag bits (makes into a VAR)
+   oris		r10,r10,LISTTAG		# make new list at top of heap
+   stw		r10,0(r11)   		# bind the variable
+   define(`$1', incr($1))
+   b		HeadWrite')
+
+define(GET_LIST_TCB,`
+   lbzu		r11,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r11,r11,2,22,31
+   lwzx		r9,r10,r11
+   GET_LIST(r9)')   
+
+define(GET_NIL,`
+   mr		r4,$1		# put into scratch
+   b		Gnil		# continue with common code')
+
+define(GET_NIL_TCB,`
+   lbzu		r11,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r11,r11,2,22,31
+   lwzx		r4,r10,r11
+   b		Gnil')
+
+define(GET_VALT,`
+   mr		r12,$1
+   b		UtermsT')
+
+define(GET_VALT_TCB,`
+   lbzu		r11,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r11,r11,2,22,31
+   lwzx		r12,r10,r11
+   b		UtermsT')
+
+define(GET_VALP,`
+   mr		r12,$1
+   b		UtermsP')
+
+define(GET_VALP_TCB,`
+   lbzu		r11,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r11,r11,2,22,31
+   lwzx		r12,r10,r11
+   b		UtermsP')
+
+define(RUNIFY_VART,`
+   RUNIFY_VART_PRIM($1,`counter')')
+define(RUNIFY_VART_PRIM,`
+UnifVart.$2:
+   lwz		$1,0(stp)		# get value
+   addi		stp,stp,4
+   cmpwi	$1,0
+   blt		InterpreterLoop	# done
+   beq		Fail			# premature end of sequence
+   andis.	r0,$1,0x2000	# If a variable then done
+   beq		InterpreterLoop
+   lwz		r0,0($1)		# if not self referencing, loop
+   cmpw		r0,$1
+   mr		stp,$1
+   bne		UnifVart.$2		# chase tailvar
+   bl		Bindstp
+   clrlwi	$1,hp,3			# make a variable from heap place in arg
+   stw		$1,0(hp)		# place onto heap
+   addi		hp,hp,4
+   li		r0,0
+   stw		r0,0(hp)		# in case of constraints
+   define(`$2', incr($2))')
+
+define(RUNIFY_VART_TCB,`
+   lbzu		r11,1(ppc)		# get arg number
+   addi		r10,temp,124
+   rlwinm	r11,r11,2,22,31
+UnifVart_tcb:
+   lwz		r9,0(stp)		# get value
+   addi		stp,stp,4
+   cmpwi	r9,0
+   beq		Fail			# premature end of sequence
+   stwx		r9,r10,r11		# store in arg
+   blt		InterpreterLoop	# done
+   andis.	r0,r9,0x2000	# If a variable then done
+   beq		InterpreterLoop
+   lwz		r0,0(r9)		# if not self referencing, loop
+   cmpw		r0,r9
+   mr		stp,r9
+   bne		UnifVart_tcb		# chase tailvar
+   bl		Bindstp
+   clrlwi	r9,hp,3			# make a variable from heap place in arg
+   stw		r9,0(hp)		# place onto heap
+   addi		hp,hp,4
+   li		r0,0
+   stw		r0,0(hp)		# in case of constraints
+   stwx		r9,r10,r11		# store in arg')
+
+define(RUNIFY_VARP,`
+   li		r11,$1
+   b		RunifVarp')
+
+define(RUNIFY_VARP_TCB,`
+   lbzu		r11,1(ppc)
+   b		RunifVarp')
+
+define(RUNIFY_VALT,`
+   mr		r3,$1
+   lwz		r12,0(stp)
+   addi		stp,stp,4
+   cmpwi	r12,0
+   b		Uterm')
+
+define(RUNIFY_VALT_TCB,`
+   lbzu		r3,1(ppc)			# get argument index
+   rlwinm	r3,r3,2,22,31		# multiply by 4
+   addi		r4,temp,124
+   lwzx		r3,r4,r3			# get argument
+   lwz		r12,0(stp)
+   addi		stp,stp,4
+   cmpwi	r12,0
+   b		Uterm')
+
+define(RUNIFY_VALP,`
+   li		r3,$1				# env offset
+   rlwinm	r3,r3,2,22,31		# multiply env offset by 4
+   lwzx		r3,ce,r3			# get env variable
+   lwz		r12,0(stp)
+   addi		stp,stp,4
+   cmpwi	r12,0
+   b		Uterm')
+
+define(RUNIFY_VALP_TCB,`
+Runif_valp_env:
+   lbzu		r3,1(ppc)				# get var index from code stream
+   cmpwi	r3,0
+   beq		Runif_valp_align
+   rlwinm	r3,r3,2,22,31			# multiply env offset by 4
+   lwzx		r3,ce,r3				# get env var
+   lwz		r12,0(stp)
+   addi		stp,stp,4
+   cmpwi	r12,0
+   b		Uterm
+Runif_valp_align:
+   addi		ppc,ppc,4				# word align it
+   clrrwi	ppc,ppc,2
+   addi		ppc,ppc,-1				# set ppc correctly
+   b		Runif_valp_env')
+
+define(RTUNIFY_VART,`
+   oris		$1,stp,LISTTAG		# make stp into a list
+   b		InterpreterLoop')
+
+define(RTUNIFY_VART_TCB,`
+   lbzu		r11,1(ppc)			# get argument
+   oris		r12,stp,LISTTAG		# make stp into a list
+   rlwinm	r11,r11,2,22,31		# multiply by 4
+   addi		r10,temp,124
+   stwx		r12,r10,r11			# store into args
+   b		InterpreterLoop')
+
+define(RTUNIFY_VARP,`
+   rlwinm	$1,$1,2,22,31		# multiply env offset by 4
+   oris		r0,stp,LISTTAG		# make stp into a list
+   stwx		r0,ce,$1
+   b		InterpreterLoop')
+
+define(RTUNIFY_VARP_TCB,`
+   lbzu		r11,1(ppc)
+   RTUNIFY_VARP(r11)')
+
+define(RTUNIFY_VALT,`
+   clrlwi	r3,$1,3
+   oris		r3,r3,0x2000
+   stw		r3,0(sp)
+   stw		stp,4(sp)
+   addi		sp,sp,8
+   b		InterpreterLoop')
+
+define(RTUNIFY_VALT_TCB,`
+   lbzu		r3,1(ppc)			# get argument offset
+   rlwinm	r3,r3,2,22,31		# multiply by 4
+   addi		r4,temp,124
+   lwzx		r3,r4,r3			# get argument
+   clrlwi	r3,r3,3
+   oris		r3,r3,0x2000
+   stw		r3,0(sp)
+   stw		stp,4(sp)
+   addi		sp,sp,8
+   b		InterpreterLoop')
+   
+define(RTUNIFY_VALP,`
+   li		r3,$1				# get env offset
+   rlwinm	r3,r3,2,22,31		# multiply by 4
+   lwzx		r3,ce,r3			# get env variable
+   clrlwi	r3,r3,3				# make sure we have an addr
+   oris		r3,r3,0x2000
+   stw		r3,0(sp)
+   stw		stp,4(sp)
+   addi		sp,sp,8
+   b		InterpreterLoop')
+
+define(RTUNIFY_VALP_TCB,`
+   lbzu		r3,1(ppc)				# get var index from code stream
+   cmpwi	r3,0
+   beq		Rtunif_valp_align
+Rtunif_valp_env:
+   rlwinm	r3,r3,2,0,31			# multiply env offset by 4
+   lwzx		r3,ce,r3				# get env var
+   clrlwi	r3,r3,3					# make sure we have an addr
+   oris		r3,r3,0x2000
+   stw		r3,0(sp)
+   stw		stp,4(sp)
+   addi		sp,sp,8
+   b		InterpreterLoop
+Rtunif_valp_align:
+   addi		ppc,ppc,4				# word align it
+   clrrwi	ppc,ppc,2
+   lwz		r3,0(ppc)
+   addi		ppc,ppc,3				# set ppc correctly
+   b		Rtunif_valp_env')
+
+define(UNIFY_ADDRESS,`
+   lwz		r4,RINGOFFSET(ppc)		# get address
+   addi		hp,hp,4					# double word align hp
+   clrrwi	hp,hp,3
+   clrlwi	r3,hp,3					# clear addr bits of hp
+   oris		r3,r3,0x8000			# structure pointer
+   lis		r5,LONGINT
+   ori		r5,r5,0x0001			# make a long int tag
+   stw		r5,0(hp)				# place on heap
+   stw		r4,4(hp)				# place addr on heap
+   addi		hp,hp,8
+   lwz		r12,4(ce)				# get first env var
+   cmpwi	r12,0
+   b		Uterm')
+
+define(RUNIF_CONS_BY_VALUE,`
+   mr		r12,hp					# copy hp into r12 for lookup
+   bl		lookup
+   lwz		hp,88(temp)				# reload hp value
+   lwz		r12,0(stp)				# get stp value
+   addi		stp,stp,4
+   cmpwi	r12,0
+   b		Uterm					# branch to unify')
+   
+define(COPY_VALP,`
+   lbzu		r3,1(ppc)
+   cmpwi	r3,0
+   beq		copy_valp_align
+copy_valp_env:
+   addi		r4,temp,124				# get start of args
+   li		r5,MAXARGS				# place var in last reg
+   rlwinm	r3,r3,2,0,31			# multiply env offset by 4
+   lwzx		r3,ce,r3				# get env term
+   rlwinm	r5,r5,2,0,31			# multiply last arg offset by 4
+   stwx		r3,r4,r5				# store env var in last tcb arg
+   b		InterpreterLoop
+copy_valp_align:
+   addi		ppc,ppc,4				# word align it
+   clrrwi	ppc,ppc,2
+   lwz		r3,0(ppc)
+   addi		ppc,ppc,3				# set ppc correctly
+   b		copy_valp_env')
+
+define(GET_VART, `
+   mr		$2,$1		# put $1 into $2')
+
+define(GET_VART_ARG1, `
+   lbzu		r11,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r11,r11,2,22,31
+   lwzx		$1,r10,r11')
+
+define(GET_VART_ARG2, `
+   lbzu		r11,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r11,r11,2,22,31
+   stwx		$1,r10,r11')
+
+define(GET_VART_TCB, `
+   lbzu		r12,1(ppc)
+   lbzu		r11,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r12,r12,2,22,31
+   lwzx		r9,r10,r12
+   rlwinm	r11,r11,2,22,31
+   stwx		r9,r10,r11')
+
+define(GET_VARP, `
+   rlwinm	$1,$1,2,22,31
+   stwx		$2,ce,$1')
+
+define(GET_VARP_ARG1, `
+   addi		r11,temp,124
+   lbzu		r12,1(ppc)
+   rlwinm	r12,r12,2,22,31
+   lwzx		r12,r11,r12
+   rlwinm	$1,$1,2,22,31
+   stwx		r12,ce,$1')
+
+define(GET_VARP_ARG2, `
+   lbzu		r12,1(ppc)
+   rlwinm	r12,r12,2,22,31
+   stwx		$1,ce,r12')
+
+define(GET_VARP_TCB, `
+   addi		r10,temp,124
+   lbzu		r12,1(ppc)
+   rlwinm	r12,r12,2,22,31
+   lbzu		r11,1(ppc)
+   rlwinm	r11,r11,2,22,31
+   lwzx		r12,r10,r12
+   stwx		r12,ce,r11')
+
+define(TRAIL,`
+   clrlwi	$2,$1,3				# clear tag
+   stwu		$2,-4(te)			# trail value
+   stwu		$1,-4(te)			# trail address')
+
+define(TRAILTV, `
+   stwu		$1,-4(te)
+   stwu		$1,-4(te)')
+
+define(QAPPEND,`
+   QAPPEND_PRIM($1,$2,$3,`counter')')   
+define(QAPPEND_PRIM, `
+   stw		$2,0($3)
+   lwz		$1,112(temp)
+   cmpwi	$1,0
+   bne		qappend_nonEmpty.$4
+   addi		$1,temp,112
+   oris		r0,$3,LISTTAG
+   b		qappend_updt.$4
+qappend_nonEmpty.$4:
+   lwz		$1,116(temp)
+   mr		r0,$3
+qappend_updt.$4:
+   define(`$4', incr($4))
+   stw		r0,0($1)
+   addi		$3,$3,4
+   stw		$3,116(temp)
+   li		$1,0
+   stw		$1,0($3)
+   addi		$3,$3,4')
+
+define(UNBOUND,`
+   UNBOUND_PRIM(`counter',$1,$2,$3)')
+define(UNBOUND_PRIM,`
+unboundLoop.$1:
+   mr		$3,$2
+   oris		r3,$3,0x2000
+   lwz		$2,0(r3)
+   cmpwi	$2,0
+   ble		$4
+   cmpw		$2,$3
+   bne		unboundLoop.$1
+   define(`$1', incr($1))')
+
+define(PREPV,`
+   PREPV_PRIM(`counter',$1,$2)')
+define(PREPV_PRIM,`
+   oris		$2,$2,0x2000
+   lwz		r4,4($2)		# get constraint mark
+   cmpwi	r4,CONSTRAINTMARK
+   bne		prepv_nocon.$1
+   addi		$3,$2,4
+   cmpw		$3,hp
+   beq		prepv_nocon.$1
+   lwz		r4,8($2)
+   QAPPEND(r5,r4,hp)
+   define(`$1', decr($1))
+   lwz		r4,BNRPflagsTC(RTOC)
+   lwz		r5,0(r4)
+   ori		r5,r5,0x02
+   stw		r5,0(r4)
+prepv_nocon.$1:
+   cmpw		$2,bh
+   bge		prepv_done.$1
+   b		prepv_trail.$1
+prepv_trail.$1:
+   clrlwi	r4,$2,3
+   stwu		r4,-4(te)
+   stwu		$2,-4(te)
+prepv_done.$1:
+   define(`$1', incr($1))')
+
+define(PREPTV,`
+   PREPTV_PRIM(`counter',$1,$2)')
+define(PREPTV_PRIM, `
+   lwz		$3,4($2)		# get constraint marker
+   cmpwi	$3,CONSTRAINTMARK
+   bne		preptv_nocon.$1
+   addi		$3,$2,4
+   cmpw		$3,hp
+   beq		preptv_nocon.$1
+   lwz		$3,8($2)
+   QAPPEND(r4,$3,hp)
+   define(`$1',decr($1))
+   lwz		$3,BNRPflagsTC(RTOC)
+   lwz		r4,0($3)
+   ori		r4,r4,0x02
+   stw		r4,0($3)
+preptv_nocon.$1:
+   mr		$3,$2
+   cmpw		$2,bh
+   bge		preptv_done.$1
+   TRAILTV($2)
+preptv_done.$1:
+   define(`$1', incr($1))')
+
+define(TAILVAR,`
+   andis.	r0,$1,0x2000			# is it a TVAR
+   beq		$2						# branch if non TVAR')
+
+define(LIST,`
+   andis.	r0,$1,0x4000		# if set then not list
+   bne		$2
+   andis.	r0,$1,0x2000		# if not set then not list
+   beq		$2
+   clrlwi	$1,$1,1				# clear top bit to get address')
+
+define(STRUCT,`
+   andis.	r0,$1,0x4000		# if set then not struct
+   bne		$2
+   andis.	r0,$1,0x2000		# if set then not struct
+   bne		$2
+   clrlwi	$1,$1,1				# clear top bit
+   oris		$1,$1,0x2000		# set address bit')
+
+# Scratch registers: r3,r4
+define(ARCHECK,`
+   ARCHECK_PRIM(`counter',$1,$2)')
+define(ARCHECK_PRIM,`
+   lhz		r3,0($2)			# get arity
+   extsh	r3,r3				# sign extend
+   addi		$2,$2,2				# update $1
+   cmpw		r3,$3
+   beq		archeck_done.$1		# if equal then done
+   cmpwi	$3,0				# if both negative then fine
+   blt		archeck_check.$1
+   cmpwi	r3,0
+   bge		Fail				# both are positive
+   add.		r0,$3,r3
+   cmpwi	r0,-1				# fine if >= -1
+   bge		archeck_done.$1
+   b		Fail
+archeck_check.$1:
+   cmpwi	r3,0
+   blt		archeck_done.$1		# arity compatible
+   add.		r0,$3,r3
+   cmpwi	r0,-1				# fine if >= -1
+   blt		Fail
+archeck_done.$1:')
+
+define(GETARITY,`
+   lbzu		$1,1(ppc)		   	# get arity
+   extsb	$1,$1				# sign extend it
+   andi.	$1,$1,0xFFFF		# get bottom half
+   oris		$1,$1,STRUCTHEADER	# put struct header into $1')
+
+define(QFREETV,`
+   addi		$3,$3,-4
+   cmpw		$1,$3
+   bne		$2')
+
+define(BIND,`
+   BIND_PRIM($1,$2,`counter')')
+
+define(BIND_PRIM,`
+   stw		$2,0($1)		# bind the variable
+#   cmpw		$1,hp
+#   bge		bind_env.$3
+   lwz		r6,4($1)		# see if there are any constraints
+   cmpwi	r6,CONSTRAINTMARK
+   bne		bind_nocon.$3
+   mr		r6,$1
+   addi		r6,r6,4
+   cmpw		r6,hp
+   beq		bind_nocon.$3
+   lwz		r5,8($1)
+   QAPPEND(r6,r5,hp)
+   define(`$3',decr($3))
+   lwz		r6,BNRPflagsTC(RTOC)
+   lwz		r11,0(r6)
+   ori		r11,r11,0x02
+   stw		r11,0(r6)
+bind_nocon.$3:
+   cmpw		$1,bh
+   bge		bind_done.$3
+#   b		bind_trail.$3
+#bind_env.$3:
+#   cmpw		$1,be
+#   bge		bind_done.$3
+bind_trail.$3:
+   TRAIL($1,r6)
+bind_done.$3:
+   define(`$3',incr($3))')
+
+define(BINDTV,`
+   BINDTV_PRIM($1,$2,`counter')')
+
+define(BINDTV_PRIM, `
+   stw		$2,0($1)		# bind the variable
+   lwz		r4,4($1)
+   cmpwi	r4,CONSTRAINTMARK
+   bne		bindtv_nocon.$3
+   mr		r4,$1
+   addi		r4,r4,4
+   cmpw		r4,hp
+   beq		bindtv_nocon.$3
+   lwz		r5,8($1)
+   QAPPEND(r4,r5,hp)
+   define(`$3',decr($3))
+   lwz		r4,BNRPflagsTC(RTOC)
+   lwz		r11,0(r4)
+   ori		r11,r11,0x02
+   stw		r11,0(r4)
+bindtv_nocon.$3:
+   cmpw		$1,bh
+   bge		bindtv_done.$3
+   TRAILTV($1)
+bindtv_done.$3:
+   define(`$3',incr($3))')
+
+# Verify that there is enough room to add new items to pdl
+define(CHECK_SP,`
+   CHECK_SP_PRIM(`counter')')
+
+define(CHECK_SP_PRIM,`
+   addi		r3,sp,50		# update for new items to be added
+   lwz		r4,60(temp)		# get spend
+   cmpw		r3,r4			# if sp is lower than spend do nothing
+   blt		check_sp_done.$1
+   lwz		r3,56(temp)		# get spbase
+   subf		sp,r3,sp		# difference between sp and spbase (used to update sp after realloc)
+   subf		hp,r3,hp		# get difference between spbase and current position
+   subf		r4,r3,r4		# get size of pdl
+   addi		r4,r4,400		# allocate 400 more bytes
+   stw		r5,60(SP)		# store here for now
+   stw		r4,64(SP)		# store new stack size
+   bl		.realloc{PR}	# reallocate more memory
+   nop
+   cmpwi	r3,0
+   beq		check_sp_full.$1	# could not allocate space
+   stw		r3,56(temp)		# update spbase
+   add		sp,sp,r3		# update sp
+   add		hp,hp,r3		# update current sp pointer
+   lwz		r5,60(SP)		# restore value
+   lwz		r4,64(SP)		# get new stack size
+   add		r4,r4,r3		# end of stack
+   stw		r4,60(temp)		# update spend
+   b		check_sp_done.$1
+check_sp_full.$1:
+   lwz		r3,64(SP)		# get stack size
+   subi		r3,r3,400		# subtract latest addition
+   lwz		r4,60(temp)		# get stack end
+   subf		r3,r3,r4		# subtract spend - size to get spbase
+   stw		r3,56(temp)		# update spbase
+   add		sp,sp,r3		# replace sp pointer
+   b		S_full			# generate error
+check_sp_done.$1:
+   define(`$1',incr($1))')
+   
+# Align numeric value.  Needed to unify floats correctly
+define(ALIGN_VALUES,`
+   ALIGN_VALUES_PRIM($1,$2,$3,`counter')')
+
+define(ALIGN_VALUES_PRIM,`
+   cmpwi	$1,2			# only align if arity is 2 (float)
+   bne		align_values_done.$4
+   addi		$2,$2,8			# align 1st arg
+   clrrwi	$2,$2,3
+   addi		$3,$3,8			# align 2nd arg
+   clrrwi	$3,$3,3
+   subi		$2,$2,4			# subtract so that unification loop works
+   subi		$3,$3,4
+align_values_done.$4:
+   define(`$4',incr($4))')
+
+define(ALIGN_VALUES2,`
+   ALIGN_VALUES_PRIM2($1,$2,$3,`counter')')
+
+define(ALIGN_VALUES_PRIM2,`
+   cmpwi        $1,2                    # only align if arity is 2 (float)
+   bne          align_values_done.$4
+   addi         $2,$2,4                 # align 1st arg
+   clrrwi       $2,$2,3
+   addi         $3,$3,4                 # align 2nd arg
+   clrrwi       $3,$3,3
+align_values_done.$4:
+   define(`$4',incr($4))')
+

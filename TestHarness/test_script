@@ -1,0 +1,17 @@
+load_context(rtest0001).
+check_files.
+consult_and_execute.
+exit_context(rtest0001).
+load_context('rtest0002.1').
+unify_a.
+unify_B.
+unify_C.
+unify_D.
+exit_context('rtest0002.1').
+load_context(rtest0003).
+test0003a.
+test0003b.
+test0003d.
+test0003e.
+exit_context(rtest0003).
+quit.

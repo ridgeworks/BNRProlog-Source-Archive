@@ -1,0 +1,223 @@
+@!OIO C++PROJECT sniff
+//Any:SniffAnyIO [
+ < "SNiFF+ Project Description File (PDF) Schema"
+    "Frames" [
+    # "ProjectAttributes" N
+       {
+          "ProjectDir" [ ! 1  "AnyString" ]
+          "Release" [ ! 1  "AnyString" ]
+          "RepositoryDir" [ ! 1  "AnyString" ]
+          "VCSystem" [ ! 1  "AnyString" ]
+          "MakefileSupport" [ ! 1  "AnyBool" ]
+          "IncludeMacro" [ ! 1  "AnyString" ]
+          "StandardHeaderDependencies" [ ! 1  "AnyBool" ]
+          "UseIncludeDir" [ ! 1  "AnyBool" ]
+          "SubDirs" [ ! 1  "AnyString" ]
+          "CreateSymbolicLinks" [ ! 1  "AnyBool" ]
+          "SharedProject" [ ! 1  "AnyBool" ]
+          "UpdateSWSimmediatly" [ ! 1  "AnyBool" ]
+          "IsLibrary" [ ! 1  "AnyBool" ]
+          "LinkObjects" [ ! 1  "AnyInt" ]
+          "TabLength" [ ! 1  "AnyInt" ]
+          "FileCount" [ ! 1  "AnyInt" ]
+          "ExecTarget" [ ! 1  "AnyString" ]
+          "ExecOtherLibs" [ ! 1  "AnyString" ]
+          "RelinkTarget" [ ! 1  "AnyString" ]
+          "RelinkOtherLibs" [ ! 1  "AnyString" ]
+          "LibTarget" [ ! 1  "AnyString" ]
+          "OtherTarget" [ ! 1  "AnyString" ]
+          "HelpTarget" [ ! 1  "AnyString" ]
+          "FileSet" [ ! 1  "AnyArray" ]
+          "SubProj" [ ! 1  "AnyArray" ]
+          "OverrideIsLibrary" [ ! 1  "AnyArray" ]
+          "OverrideLinkObjects" [ ! 1  "AnyArray" ]
+          "GenerateDir" [ ! 1  "AnyString" ]
+          "IgnoreStringsFile" [ ! 1  "AnyString" ]
+          "MakeCommand" [ ! 1  "AnyString" ]
+          "ClassPrefix" [ ! 1  "AnyString" ]
+          "PreprocessorSwitch" [ ! 1  "AnyString" ]
+          "DoPreprocessing" [ ! 1  "AnyBool" ]
+          "LocationStateFile" [ ! 1  "AnyString" ]
+          "LocationMakeSupport" [ ! 1  "AnyString" ]
+          "DependenciesFile" [ ! 1  "AnyString" ]
+          "MacrosFile" [ ! 1  "AnyString" ]
+          "ObjectFilesFile" [ ! 1  "AnyString" ]
+          "VPathFile" [ ! 1  "AnyString" ]
+          "UseCache" [ ! 1  "AnyBool" ]
+          "FileTypes" [ ! 1  "AnyDict" ]
+       }
+    #
+    # "SubProjSchema" N
+       {
+          "SubProjName" [ ! 1  "AnyString" ]
+          "SubProjDir" [ ! 1  "AnyString" ]
+       }
+    #
+    # "File_Types_Info" N
+       {
+          "Name" [ ! 1  "AnyString" ]
+          "Signatures" [ ! 1  "AnyString" ]
+          "Type" [ ! 1  "AnyString" ]
+          "Tools" [ ! 1  "AnyString" ]
+          "Tool Names" [ ! 1  "AnyString" ]
+          "Directory" [ ! 1  "AnyString" ]
+          "Derived From" [ ! 1  "AnyString" ]
+          "Icon" [ ! 1  "AnyString" ]
+          "Parser" [ ! 1  "AnyString" ]
+          "Retriever Priority" [ ! 1  "AnyString" ]
+          "Create Symbolic Link" [ ! 1  "AnyBool" ]
+          "Is Default File Type" [ ! 1  "AnyBool" ]
+          "Add/Remove Automatically" [ ! 1  "AnyBool" ]
+       }
+    # ]
+ >
+ < "ProjectAttributes"
+    "ProjectDir" [ "BNRProlog/TestHarness" ]
+    "Release" [ "V2.2" ]
+    "RepositoryDir" [ "" ]
+    "VCSystem" [ "RCS" ]
+    "MakefileSupport" [ F ]
+    "IncludeMacro" [ "" ]
+    "StandardHeaderDependencies" [ F ]
+    "UseIncludeDir" [ F ]
+    "SubDirs" [ "" ]
+    "CreateSymbolicLinks" [ T ]
+    "SharedProject" [ T ]
+    "UpdateSWSimmediatly" [ F ]
+    "IsLibrary" [ F ]
+    "LinkObjects" [ 0 ]
+    "TabLength" [ 4 ]
+    "FileCount" [ 24 ]
+    "ExecTarget" [ "" ]
+    "ExecOtherLibs" [ "" ]
+    "RelinkTarget" [ "" ]
+    "RelinkOtherLibs" [ "" ]
+    "LibTarget" [ "" ]
+    "OtherTarget" [ "" ]
+    "HelpTarget" [ "all:create_vpath:symbolic_links:check_obsolete_files:clean:clean_targets:help:update_ws_to_shared_ws" ]
+    "FileSet" [
+       "RTH_usage.doc"
+       "START_ORC"
+       "START_TST"
+       "TestHarness.shared"
+       "rtest0001"
+       "rtest0002"
+       "rtest0002.1"
+       "rtest0002_notes"
+       "rtest0002a"
+       "rtest0002b"
+       "rtest0002c"
+       "rtest0002d"
+       "rtest0002t"
+       "rtest0003"
+       "rtest_eval.p"
+       "rtest_orc.p"
+       "rtest_ref_rec.p"
+       "rtest_test_rec.p"
+       "rtestdata02"
+       "rtestdata03"
+       "rtestdata04"
+       "tcp_params"
+       "test_script"
+       "tfta"
+       ]
+    "SubProj" [ ]
+    "OverrideIsLibrary" [ ]
+    "OverrideLinkObjects" [ ]
+    "GenerateDir" [ ".sniffdir" ]
+    "IgnoreStringsFile" [ "" ]
+    "MakeCommand" [ "gmake" ]
+    "ClassPrefix" [ "" ]
+    "PreprocessorSwitch" [ "" ]
+    "DoPreprocessing" [ F ]
+    "LocationStateFile" [ "" ]
+    "LocationMakeSupport" [ "" ]
+    "DependenciesFile" [ "dependencies.incl" ]
+    "MacrosFile" [ "macros.incl" ]
+    "ObjectFilesFile" [ "ofiles.incl" ]
+    "VPathFile" [ "vpath.incl" ]
+    "UseCache" [ F ]
+    "FileTypes" [
+    {
+       "Make" [
+       < "File_Types_Info"
+          "Name" [ "Make" ]
+          "Signatures" [ "Makefile:makefile:*.mk:*.cron" ]
+          "Type" [ "Make" ]
+          "Tools" [ "SniffEdit:chmod u+w %f:chmod a-w %f:ls -l %f" ]
+          "Tool Names" [ "Edit:Set Writable:Set Read Only:ls -l" ]
+          "Directory" [ ]
+          "Derived From" [ ]
+          "Icon" [ "$SNIFF_DIR/icons/CatMake.image" ]
+          "Parser" [ ]
+          "Retriever Priority" [ "6" ]
+          "Create Symbolic Link" [ T ]
+          "Is Default File Type" [ T ]
+          "Add/Remove Automatically" [ F ]
+       > ]
+       "Header" [
+       < "File_Types_Info"
+          "Name" [ "Header" ]
+          "Signatures" [ "*.h:*.H:*.hh:*.hxx:*.ci" ]
+          "Type" [ "Header" ]
+          "Tools" [ "SniffEdit:chmod u+w %f:chmod a-w %f:ls -l %f" ]
+          "Tool Names" [ "Edit:Set Writable:Set Read Only:ls -l" ]
+          "Directory" [ ]
+          "Derived From" [ ]
+          "Icon" [ "$SNIFF_DIR/icons/CatHeader.image" ]
+          "Parser" [ "SNiFF-C++" ]
+          "Retriever Priority" [ "1" ]
+          "Create Symbolic Link" [ F ]
+          "Is Default File Type" [ T ]
+          "Add/Remove Automatically" [ F ]
+       > ]
+       "Implementation" [
+       < "File_Types_Info"
+          "Name" [ "Implementation" ]
+          "Signatures" [ "*.c:*.cc:*.C:*.cxx:*.cpp" ]
+          "Type" [ "Implementation" ]
+          "Tools" [ "SniffEdit:chmod u+w %f:chmod a-w %f:ls -l %f" ]
+          "Tool Names" [ "Edit:Set Writable:Set Read Only:ls -l" ]
+          "Directory" [ ]
+          "Derived From" [ ]
+          "Icon" [ "$SNIFF_DIR/icons/CatSource.image" ]
+          "Parser" [ "SNiFF-C++" ]
+          "Retriever Priority" [ "2" ]
+          "Create Symbolic Link" [ F ]
+          "Is Default File Type" [ T ]
+          "Add/Remove Automatically" [ F ]
+       > ]
+       "Project Description" [
+       < "File_Types_Info"
+          "Name" [ "Project Description" ]
+          "Signatures" [ "*.proj:*.shared" ]
+          "Type" [ "Project" ]
+          "Tools" [ "SniffOpen:SniffEdit:chmod u+w %f:chmod a-w %f:ls -l %f" ]
+          "Tool Names" [ "Open Project:Edit PDF:Set Writable:Set Read Only:ls -l" ]
+          "Directory" [ ]
+          "Derived From" [ ]
+          "Icon" [ "$SNIFF_DIR/icons/CatProj.image" ]
+          "Parser" [ ]
+          "Retriever Priority" [ "8" ]
+          "Create Symbolic Link" [ F ]
+          "Is Default File Type" [ T ]
+          "Add/Remove Automatically" [ F ]
+       > ]
+       "ZZAll" [
+       < "File_Types_Info"
+          "Name" [ "ZZAll" ]
+          "Signatures" [ "*" ]
+          "Type" [ "All" ]
+          "Tools" [ "SniffEdit:csh:chmod u+w %f:chmod a-w %f:ls -l %f" ]
+          "Tool Names" [ "Edit:Shell:Set Writable:Set Read Only:ls -l" ]
+          "Directory" [ ]
+          "Derived From" [ ]
+          "Icon" [ "$SNIFF_DIR/icons/CatScript.image" ]
+          "Parser" [ ]
+          "Retriever Priority" [ "999" ]
+          "Create Symbolic Link" [ F ]
+          "Is Default File Type" [ F ]
+          "Add/Remove Automatically" [ F ]
+       > ]
+    } ]
+ > ]

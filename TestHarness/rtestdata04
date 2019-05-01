@@ -1,0 +1,105 @@
+Subject: 
+             Re: Scheme Interpreter Written in Prolog (long) 
+       Date: 
+             11 Dec 96 14:13:56 +0000 
+       From: 
+             "Lindsey Spratt" <spratt@eecs.ukans.edu>
+Organization: 
+             Internet Direct Communications 
+ Newsgroups: 
+             comp.lang.prolog
+ References: 
+             1
+
+
+Dave R. Forst <dforst@zoo.uvm.edu>:
+> I'm trying to write a simple Scheme interpreter written in Prolog.  Has
+> anyone tried this before?  Any ideas on how to do this?  I'm fairly new
+> to Prolog so any help would be deeply appreciated.
+>
+
+I have such an interpreter, although I don't know if it qualifies as
+"simple". The central "eval loop" is implemented (in LPA MacProlog) as
+shown below. This is not the whole implementation of my "ProScheme", but
+perhaps this will give you some useful ideas.
+
+-------------------------------BEGIN PROLOG
+CODE----------------------------
+
+/* The 2 implicit arguments added by '-->' are the input and output
+versions of the Machine.
+interpret/4 is called by:
+interpret(Expression, Value, MachineIn, MachineOut)
+where Expression and MachineIn are not variables (generally should be
+ground), and Value and MachineOut are generally unbound variables.
+[define, [factorial, n],
+  [if, [=, n, 1],
+        1,
+        [*, n, [factorial, [-, n, 1]]]].
+
+*/
+
+interpret(Expression,Value) -->
+          interpret_case(Expression, Value),
+          interpret_message(Expression, Value),
+          !.
+
+interpret(Expression, _) -->
+          print_representation(Expression, PrintExpression),
+          {proscheme_error_message(interpret, ['Unable to interpret',
+PrintExpression])},
+          !,
+          {fail}.
+
+
+interpret_case(atom(X), Value) -->
+          interpret_case_atom(X, Value).
+
+interpret_case(ptr(ID), Value) -->
+          dereferenced_value(ptr(ID), cons(Car, Cdr)),
+          interpret_case_cons(Car, Cdr, ptr(ID), Value).
+
+
+interpret_case_atom(Symbol, atom(Symbol)) -->
+          {number(Symbol)},
+          !.
+
+interpret_case_atom(Symbol, Value) -->
+          choose_binding(atom(Symbol), Value).
+
+
+interpret_case_cons(atom(X), Cdr, Ptr, Value) -->
+          interpret_case_cons_atom(X, Cdr, Ptr, Value).
+
+interpret_case_cons(ptr(ID), Cdr, _, Value) -->
+          interpret(ptr(ID), Procedure),
+          interpret_operand_expressions(Cdr, RestValues),
+          interpret_procedure(Procedure, RestValues, Value).
+
+
+interpret_case_cons_atom(load, atom(nil), _, Value) -->
+          !,
+          {old('TEXT', File, Vol, 'ProScheme source file:'),
+           scheme_parse(File, Vol, Source)},
+          allocate_list([sequence|Source], AllocatedSource),
+          interpret(AllocatedSource, Value).
+          
+interpret_case_cons_atom(load, Cdr, _, Value) -->
+          !,
+          dereferenced_value(Cdr, cons(atom(File), atom(nil))),
+          {dvol(Vol),
+           scheme_parse(File, Vol, Source)},
+          allocate_list([sequence|Source], AllocatedSource),
+          interpret(AllocatedSource, Value).
+          
+interpret_case_cons_atom(primitive, Cdr, _, Name) -->
+          !,
+           dereferenced_value(Cdr, cons(Name, Rest)),
+           interpret_primitive_functor(Name, Rest, Functor),
+          {procedure_parts(Procedure, primitive, ID, [], Functor)},
+          current_environment_id(ID),
+          bind(Name, Procedure).
+
+interpret_case_cons_atom(lambda, Cdr, _, Procedure) -->
+          !,
+          interpret_lambda(Cdr, Procedure).

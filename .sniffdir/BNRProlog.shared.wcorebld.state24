@@ -1,0 +1,53 @@
+
+{0 {1 0 OrdStringColl 3.1 } 20 0 } 
+0
+1
+0 0 
+1 1 
+650 300 
+1
+0
+0
+1
+540 0 
+570 144 
+390 0 
+260 0 
+460 217 
+700 450 
+1
+0
+0
+5 "HEAD\x00"
+12 "BNRP-v5_0_6\x00"
+
+{2 @1 20 10 17 "BNRProlog.shared\x00"
+18 "build_base.shared\x00"
+19 "base_source.shared\x00"
+17 "utilities.shared\x00"
+18 "Panels_3.1.shared\x00"
+19 "panel_files.shared\x00"
+14 "source.shared\x00"
+15 "xsource.shared\x00"
+21 "prologSupport.shared\x00"
+19 "TestHarness.shared\x00"
+} 
+
+{3 @1 10 0 } 
+1
+0
+1
+0 372 
+1 1 
+344 802 
+0
+0
+
+{4 @1 20 1 19 "TestHarness.shared\x00"
+} 
+1
+
+{5 @1 10 0 } 
+1
+0
+0

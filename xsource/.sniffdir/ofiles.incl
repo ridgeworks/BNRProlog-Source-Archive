@@ -1,0 +1,8 @@
+OFILES = ProEvents.o ProFiles.o ProGraf.o \
+		ProMenus.o ProText.o ProWindows.o \
+		Prolog.o XProlog.o scale.o \
+		xwollongong.o 
+
+CLASSFILES = 
+
+

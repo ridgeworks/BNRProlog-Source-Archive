@@ -1,0 +1,369 @@
+	/*******************************************************\
+	*							*
+	*	BNR Prolog Regression Test Suite:		*
+	*	================================		*
+	*							*
+	*	Program:	Backtracking, cuts and		*
+	*				controls test		*
+	*	Version:	1.0.1				*
+	*	File:		RTEST0003			*
+	*	Written:	I Sykes		Date: 4/12/97	*
+	*	Revised:			Date:		*
+	*							*
+	*							*
+	*	Main predicate is 'test0003'			*
+	*							*
+	\*******************************************************/
+
+
+%	Main test predicate:
+%	===================
+
+test0003:-
+	test0003a,
+	test0003b,
+%	test0003c,
+	test0003d,
+	test0003e.
+	
+
+
+
+	
+%	SOME FAILURE BACKTRACKING:
+%	-------------------------
+	test0003a:- nl,a(true),nl,a1(true),nl.
+
+	a(X):- w(a),b(X).
+	b(X):- w(b1),c(X).
+	b(X):- w(""),w(b2),d(X).
+	b(X):- w(""),w(b3),e(X).
+	c(X):- w(c1),g(X).
+	c(X):- w("\t"),w(c2),h(X).
+	c(X):- w("\t"),w(c3),i(X).
+	d(X):- w(d1),h(X).
+	d(X):- w("\t"),w(d2),i(X).
+	d(X):- w("\t"),w(d3),j(X).
+	e(X):- w(e1),i(X).
+	e(X):- w("\t"),w(e2),j(X).
+	e(X):- w("\t"),w(e3),k(X).
+
+%	As above but using ';'
+%	---------------------	
+	a1(X):- w(a),b1(X).
+	b1(X):- w(b1),c1(X);w(""),w(b2),d1(X);w(""),w(b3),e1(X).
+	c1(X):- w(c1),g(X);w("\t"),w(c2),h(X);w("\t"),w(c3),i(X).
+	d1(X):- w(d1),h(X);w("\t"),w(d2),i(X);w("\t"),w(d3),j(X).
+	e1(X):- w(e1),i(X);w("\t"),w(e2),j(X);w("\t"),w(e3),k(X).
+
+	
+	g(X):- w(g),nl,X,fail.
+	h(X):- w(h),nl,X,fail.
+	i(X):- w(i),nl,X,fail.
+	j(X):- w(j),nl,X,fail.
+	k(X):- w(k),nl,nl,X.
+	
+	w(X):- write_test(X,"\t").
+
+
+
+
+%	BACKTRACKING THROUGH 'OR' & 'AND' MIX:
+%	-------------------------------------
+	test0003b:- nl,aa(true),fail.
+	test0003b:- count(aa(true),N),nl,
+		write_test(N," Solutions counted.\n\n").
+
+	
+	aa(X):- bb(X).
+	bb(X):- cc(X),dd(X),ee(X),write_test(" of Class 1\n").
+	bb(X):- dd(X),ee(X),ff(X),write_test(" of Class 2\n").
+	bb(X):- ee(X),ff(X),gg(X),write_test(" of Class 3\n").
+	cc(X):- hh(X).
+	dd(X):- ii(X).
+	ee(X):- jj(X).
+	ff(X):- kk(X).
+	gg(X):- ll(X).
+	hh(X):- mm(X),write_test(" then Type A ").
+	hh(X):- nn(X),write_test(" then Type B ").
+	hh(X):- oo(X),write_test(" then Type C ").
+	ii(X):- pp(X),write_test(" then Type D ").
+	ii(X):- mm(X),oo(X),write_test(" then Type E ").
+	ii(X):- nn(X),pp(X),write_test(" then Type F ").
+	jj(X):- mm(X),nn(X),write_test(" then Type G ").
+	jj(X):- nn(X),oo(X),write_test(" then Type H ").
+	jj(X):- oo(X),pp(X),write_test(" then Type I ").
+	kk(X):- pp(X),mm(X),write_test(" then Type J ").
+	kk(X):- mm(X),nn(X),oo(X),write_test(" then Type K ").
+	kk(X):- nn(X),oo(X),pp(X),write_test(" then Type L ").
+	ll(X):- oo(X),pp(X),mm(X),write_test(" then Type M ").
+	ll(X):- pp(X),mm(X),nn(X),write_test(" then Type N ").
+	ll(X):- mm(X),nn(X),oo(X),pp(X),write_test(" then Type O ").
+	mm(X):- write_test("\nIf red legs"),X.
+	nn(X):- write_test("\nIf orange beak"),X.
+	oo(X):- write_test("\nIf brown feathers"),X.
+	pp(X):- write_test("\nIf purple crest"),X.
+
+	
+	
+	
+	
+%	MANY (88,573) POINTS OF BACKTRACKING:
+%	------------------------------------
+	test0003c:- nl,x1(10,true),nl,nl.
+
+	x1(Depth,X):- 
+		write_test("0,1\n"),
+		y2(Depth,0,X).
+	x1(Depth,_):-
+		nodes(3,Depth,Nodes),nl,
+		write_test(Nodes," backtrack points enumerated.\n\n").
+	
+	
+	y2(Depth,Count,X):-
+		Count_new is Count + 1,
+		write_test(Count_new,",1 --> "),
+		X,
+		dep_tst(Count_new,Depth,0),
+		y2(Depth,Count_new,X).		
+	
+	y2(Depth,Count,X):-
+		Count_new is Count + 1,
+		write_test(Count_new,",2 --> "),
+		X,
+		dep_tst(Count_new,Depth,0),
+		y2(Depth,Count_new,X).		
+
+	y2(Depth,Count,X):-
+		Count_new is Count + 1,
+		write_test(Count_new,",3 --> "),
+		X,
+		dep_tst(Count_new,Depth,0),
+		y2(Depth,Count_new,X).		
+
+
+			
+				
+			
+%	MORE (364) POINTS OF BACKTRACKING (with stats):
+%	----------------------------------------------
+	test0003d:- nl,x2(5,true),nl,nl.
+
+	x2(Depth,X):- 
+		stats,
+		mk_unique_flnm("stats_",Filename),
+		open(Str,Filename,read_write,Error),nl,
+		version(Ver),timedate(Time,Date),
+		swrite(Str,Ver,"|",Time,"|",Date,"\n"),
+		write("Opened ",Filename," with stream # ",Str," and error code ",Error),nl,
+		write_test("0,1\n"),
+		y3(Depth,0,Str,X);
+		set_end_of_file(Str),
+		close(Str,0).
+		
+
+		mk_unique_flnm(Filename,_):- 
+			namelength(Filename,Length),Length > 32,
+			write("The generated file name ",Filename," is too long for comfort.\n"),!.
+		mk_unique_flnm(Prefix,Filename):-
+			random(Rand),Asc is (Rand mod 26) + 97,char_int(Suffix,Asc),
+			concat(Prefix,Suffix,New_name),
+			is_unique(New_name,Filename).
+			
+			is_unique(Filename,Filename):-
+				open(_,Filename,read_only,9996),!.
+			is_unique(Old_name,New_name):-
+				mk_unique_flnm(Old_name,New_name).
+	
+	
+	y3(Depth,Count,Str,X):-
+		Count_new is Count + 1,
+		write_test(Count_new,",1 --> "),
+		X,
+		dep_tst(Count_new,Depth,0),
+		y3(Depth,Count_new,Str,X).		
+	
+	y3(Depth,Count,Str,X):-
+		Count_new is Count + 1,
+		write_test(Count_new,",2 --> "),
+		X,
+		dep_tst(Count_new,Depth,0),
+		y3(Depth,Count_new,Str,X).		
+
+	y3(Depth,Count,Str,X):-
+		Count_new is Count + 1,
+		write_test(Count_new,",3 --> "),
+		X,
+		dep_tst(Count_new,Depth,Str),
+		y3(Depth,Count_new,Str,X).		
+
+
+
+
+%	OTHER ELEMENTS OF CONTROL:
+%	-------------------------
+	test0003e:-
+		write_test("\n'findall' test:\n"),
+		findall(A1,aaa(A1,true),List1),
+		concatenate(List1,B1),nl,
+		write_test(B1),
+		nl,nl,write_test("**********************************************"),nl,nl,
+		write_test("\n'findset' test:\n"),
+		findset(A2,aaa(A2,true),List2),
+		concatenate(List2,B2),nl,
+		write_test(B2),
+		write_test("\n'count' test:\n"),
+		count(aaa(_,true),N),nl,write_test(N," Solutions counted."),nl,nl.
+
+	
+	aaa(Y,Do):- bbb(X,Do),concatenate(X,Y).
+	
+	bbb([A,B,C," of Class 1\n"],Do):- ccc(A),ddd(B,Do),eee(C,Do).
+	bbb([A,B,C," of Class 2\n"],Do):- ddd(A,Do),eee(B,Do),fff(C,Do).
+	bbb([A,B,C," of Class 3\n"],Do):- eee(A,Do),fff(B,Do),ggg(C,Do).
+	
+	ccc(Y):- hhh(X),concatenate(X,Y).
+	ddd(Y,Do):- iii(X,Do),concatenate(X,Y).
+	eee(Y,Do):- jjj(X,Do),concatenate(X,Y).
+	fff(Y,Do):- kkk(X,Do),concatenate(X,Y).
+	ggg(Y,Do):- lll(X,Do),concatenate(X,Y).
+	
+	hhh([X," then Type A"]):- mmm(X).
+	hhh([X," then Type B"]):- nnn(X).
+	hhh([X," then Type C"]):- ooo(X).
+	
+	iii([X," then Type D"],Do):- ppp(X,Do).
+	iii([X,Y," then Type E"],_):- mmm(X),ooo(Y).
+	iii([X,Y," then Type F"],Do):- nnn(X),ppp(Y,Do).
+	
+	jjj([X,Y," then Type G"],_):- mmm(X),nnn(Y).
+	jjj([X,Y," then Type H"],_):- nnn(X),ooo(Y).
+	jjj([X,Y," then Type I"],Do):- ooo(X),ppp(Y,Do).
+	
+	kkk([X,Y," then Type J"],Do):- ppp(X,Do),mmm(Y).
+	kkk([X,Y,Z," then Type K"],_):- mmm(X),nnn(Y),ooo(Z).
+	kkk([X,Y,Z," then Type L"],Do):- nnn(X),ooo(Y),ppp(Z,Do). 
+	
+	lll([X,Y,Z," then Type M"],Do):- ooo(X),ppp(Y,Do),mmm(Z).
+	lll([X,Y,Z," then Type N"],Do):- ppp(X,Do),mmm(Y),nnn(Z).
+	lll([X,Y,Z,W," then Type O"],Do):- mmm(X),nnn(Y),ooo(Z),ppp(W,Do).
+	
+	mmm("\nIf red legs,").
+	nnn("\nIf orange beak,").
+	ooo("\nIf brown feathers,").
+	ppp("\nIf purple crest,",Done):- Done.
+
+
+
+
+%	UTILITY PREDICATES:
+		
+
+%		Fails deterministicly when Count reaches Depth and does stats as required.
+%		-------------------------------------------------------------------------
+		dep_tst(Count,Depth,Stream):-
+			Count < Depth -> true;
+			Count > Depth -> [write_test("Should not be here!\n"),fail];
+			Stream == 0 -> [write_test("Fail-0\n"),fail];[write_stats(Stream),write_test("Fail-1\n"),fail].
+			
+
+/*
+%		As above without [brackets]:
+%		---------------------------
+		dep_tst(Count,Depth,Stream):-
+			Count < Depth -> true;
+			Count > Depth -> w_error;
+			Stream == 0 -> w1_fail;w2_fail(Stream).
+			
+			w_error:- write_test("Should not be here!\n"),fail.
+			w1_fail:- write_test("Fail\n"),fail.
+			w2_fail(Stream):- write_stats(Stream),w1_fail.
+
+
+%		Conventional version of the above:
+%		---------------------------------		
+		dep_tst(Count,Depth,_):- Count < Depth,!.
+		dep_tst(Count,Depth,_):- Count > Depth,write_test("Should not be here!\n"),!,fail.
+		dep_tst(Depth,Depth,0):- write_test("Fail\n"),!,fail.
+		dep_tst(Depth,Depth,Stream):- write_stats(Stream),write_test("Fail\n"),fail.
+
+*/
+
+
+
+%		Calculates number of nodes in a cyclic tree with 'm' Branches and Depth 'n'.
+%		---------------------------------------------------------------------------
+		nodes(Branches,Depth,Nodes):-
+			calc_nodes(Branches,Depth,0,Nodes).
+		
+			calc_nodes(Alts,0,Nod,Nodes):- Nodes is Nod+1,!.
+			calc_nodes(Alts,Depth,Nodes,Result):-
+				More_Nodes is ((Alts**Depth)+Nodes),
+				Less_Depth is Depth-1,
+				calc_nodes(Alts,Less_Depth,More_Nodes,Result).
+				
+
+
+		
+%		Captures statistical data and writes it to screen and a commented context.
+%		-------------------------------------------------------------------------
+/*		write_stats(1):-
+			T="\t",C=",",N="\n",
+			stats(Lis,Prims,Intops,Iterations,DeltaT,NumGc,ElapsedTime),
+			memory_status([WsT,WsU,WsH],[GsT,GsU,GsH],[LsT,LsU,LsH],_),
+			write("\nSTACKS:\t\tTotal\tUsed\tHighwater\n\t\t=====\t====\t========="),nl,
+			write("\tWorld:\t",WsT,T,WsU,T,WsH),nl,
+			write("\tGlobal:\t",GsT,T,GsU,T,GsH),nl,
+			write("\tLocal:\t",LsT,T,LsU,T,LsH),nl,nl,
+			write("OTHER DATA:"),nl,
+			write("\tLogical Inferences:\t",Lis),nl,
+			write("\tPrimitives:\t\t",Prims),nl,
+			write("\tInterval Operations:\t",Intops),nl,
+			write("\tNarrowing Iterations:\t",Iterations),nl,
+			write("\tmSecs of CPU:\t\t",DeltaT),nl,
+			write("\tGarbage Collections:\t",NumGc),nl,
+			write("\tmSecs since stats:\t",ElapsedTime),nl,!.*/
+		write_stats(Stream):-
+			T="\t",C=",",N="\n",
+			stats(Lis,Prims,Intops,Iterations,DeltaT,NumGc,ElapsedTime),
+			memory_status([WsT,WsU,WsH],[GsT,GsU,GsH],[LsT,LsU,LsH],_),
+			swrite(Stream,"\n\n% STACKS:\tTotal\tUsed\tHighwater\n%\t\t=====\t====\t=========\n"),
+			swrite(Stream,"%\tWorld:\t",WsT,T,WsU,T,WsH,N),
+			swrite(Stream,"%\tGlobal:\t",GsT,T,GsU,T,GsH,N),
+			swrite(Stream,"%\tLocal:\t",LsT,T,LsU,T,LsH,N,N),
+			swrite(Stream,"% OTHER DATA:\n"),
+			swrite(Stream,"%\tLogical Inferences:\t",Lis,N),
+			swrite(Stream,"%\tPrimitives:\t\t",Prims,N),
+			swrite(Stream,"%\tInterval Operations:\t",Intops,N),
+			swrite(Stream,"%\tNarrowing Iterations:\t",Iterations,N),
+			swrite(Stream,"%\tmSecs of CPU:\t\t",DeltaT,N),
+			swrite(Stream,"%\tGarbage Collections:\t",NumGc,N),
+			swrite(Stream,"%\tmSecs since stats:\t",ElapsedTime,N,N),
+			swrite(Stream,"world_stack(",ElapsedTime,C,WsT,C,WsU,C,WsH,").\n"),
+			swrite(Stream,"global_stack(",ElapsedTime,C,GsT,C,GsU,C,GsH,").\n"),
+			swrite(Stream,"local_stack(",ElapsedTime,C,LsT,C,LsU,C,LsH,").\n"),
+			swrite(Stream,"logical_inferences(",ElapsedTime,C,Lis,").\n"),
+			swrite(Stream,"primitives(",ElapsedTime,C,Prims,").\n"),
+			swrite(Stream,"interval_operations(",ElapsedTime,C,Intops,").\n"),
+			swrite(Stream,"narrowing_iterations(",ElapsedTime,C,Iterations,").\n"),
+			swrite(Stream,"mSecs_CPU(",ElapsedTime,C,DeltaT,").\n"),
+			swrite(Stream,"garbage_collections(",ElapsedTime,C,NumGc,").\n"),!.
+		write_stats(_):-
+			write("Stats collection has failed.").
+
+
+
+%		Concatenates a list of tokens into a single token.
+%		-------------------------------------------------			
+		concatenate(List,String):-
+			cctnt(List,"",String).
+			
+			cctnt([],String,String).
+			cctnt([Token,List..],String,Result):-
+				concat(String,Token,New_string),
+				cctnt(List,New_string,Result).
+			
+			
+			
+			
+			

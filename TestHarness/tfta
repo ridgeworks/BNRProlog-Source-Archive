@@ -1,0 +1,72 @@
+
+	/*******************************************************\
+	*							*
+	*	BNR Prolog Regression Test Suite:		*
+	*	================================		*
+	*							*
+	*	Program:	Context load & compile test.	*
+	*	Version:	1.00				*
+	*	File:		TFTA				*
+	*	Written:	I Sykes		Date: 12/02/97	*
+	*	Revised:			Date:		*
+	*							*
+	*							*
+	*	Main predicate is 'tft(n,substitution)'		*
+	*							*
+	\*******************************************************/
+
+
+
+
+%  SELF PROPAGATING PREDICATE WITH UNIFICATION TESTS:
+%  -------------------------------------------------
+
+tft(X,Substitution):-
+	% INCREMENT COUNTERS:
+	t_count(N),M is N + 1,
+	N1 is N + 97,M1 is M + 97,
+	assert(t_count(M)),write("Assert ",M,"\n"),
+	
+	% CREATE CONTEXT NAMES AND OPEN NEW FILE:
+	char_int(FI,N1),concat(tft,FI,FO),
+	char_int(FJ,M1),concat(tft,FJ,FN),
+	open(P,FN,read_write,0),write("Open ",FN,"\n"),
+	
+	% REPRODUCE PROGRAM IN NEW FILE AND CLOSE FILE:
+	listing(P,_,FO),
+	set_end_of_file(P),
+	close(P,ERR),write("Close ",FN," with error ",ERR,"\n"),
+	
+	% LOAD AND EXECUTE CHILD PROGRAM:
+	load_context(FN),write("Load ",FN,"\n"),
+	run_tft(X,Substitution),
+	
+	% RUN SUBSTITUTED PREDICATES:
+	Substitution,
+	
+	% TERMINATE CHILD PROGRAM:
+	write("Exiting context ",FN,"\n"),
+	exit_context(FN),
+	retract(t_count(M)),write("Retract ",M,"\n"),!.
+	
+%	End Main.
+%	--------
+
+	
+	% TERMINATE OR EXECUTE CHILD PROGRAM:
+	run_tft(X,_):- t_count(M),M >= X,!.
+	run_tft(X,Substitution):- tft(X,Substitution).
+
+	
+	% COUNTER:
+	t_count(0).
+	
+	
+
+	% SUNDRY PREDICATES FOR TEST UNIFICATION:
+	foo(1,[1,2,3,[foo(bar,_jane..),1,2]]).
+	fx(fx(_alpha,[_A,_B,fx(_alpha,[_delta..]),_C]),fx([_A,_B,fx(_delta,[_alpha..]),_C],_delta)).
+	fy(fy(_alpha,A1),fy(B1,_delta)).
+	B2=fz(fz(_alpha,[A2,B2,fz(_alpha,[_delta..]),C2]),fz([A2,B2,fz(_delta,[_alpha..]),C2],_delta)).
+%	JUNE=[a,b,JUNE..].%  <=== this causes complile problems further on.
+

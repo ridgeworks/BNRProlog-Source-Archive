@@ -1,0 +1,93 @@
+	/***************************************************************\
+	*								*
+	*		BNR Prolog Regression Test Suite:		*
+	*		================================		*
+	*								*
+	*	Program:	Unification tests and substitutions	*
+	*	Version:	2.10					*
+	*	File:		rtest0002t				*
+	*	Written:	I Sykes		Date: 1/07/97		*
+	*	Revised:			Date:			*
+	*								*
+	*								*
+	\***************************************************************/
+
+
+%	Unification Tests:
+%	=================
+		
+%	Symetry test.
+%	------------
+	test_unify(symetry_tst,X,Y):- X=Y.
+	test_unify(symetry_tst,X,Y):- Y=X.
+
+
+%	Reflexivity test.
+%	----------------
+	test_unify(reflexivity,X,X):- X=X.
+	test_unify(reflexivity,X,X).
+
+
+%	Transitivity test.
+%	-----------------
+	test_unify(transitivity,X,Y):- X=Z,Z=Y.
+
+%	Unification equivalents:
+%	-----------------------
+%	test_unify(equivalents,X,Y):- swrite(Y,X).
+%
+%	test_unify(equivalents,X,Y):- subsumes(X,Y),X=Y.
+
+
+%	Test types.
+%	----------
+	test_type(symetry_tst).
+	test_type(reflexivity).
+	test_type(transitivity).
+%	test_type(equivalents).
+
+
+
+
+%	Ancilliary predicates.
+%	---------------------
+
+	member(X,[X,_..]).
+	member(X,[_,Y..]):-
+		member(X,Y).
+
+
+
+%   Test substitutuions.
+%   ===================
+	ts(a,1,fred).
+	ts(a,2,jim_).
+	ts(a,3,"Joan").
+	ts(a,4,'Jane').
+	ts(b,5,JUNE).
+	ts(b,6,Joan).
+	ts(b,7,_jane).
+	ts(c,8,test_unify(X,Y)).
+	ts(c,9,test_unify(X):- X=X).
+	ts(c,10,test_unify(X,Y):- [X=Z,Z=Y]).
+	ts(d,11,[test_unify(X,Y):- X=Z,Z=Y]).
+	ts(d,12,[jim,bob,fred]).
+	ts(d,13,[fred,X..]).
+	ts(d,14,[X..]).
+	ts(d,15,[X,Y..]).
+	ts(d,16,[a,b,JUNE..]).
+	ts(e,17,fred(A,charlie,zebra(3,Joan))).
+	ts(e,18,foo(1,[1,2,3,[foo(bar,_jane..),1,2]])).
+	ts(e,19,fx(fx(_alpha,[A,B,fx(_alpha,[_delta..]),C]),fx([A,B,fx(_delta,[_alpha..]),C],_delta))).
+	ts(e,20,fx(fx(_alpha,A),fx(B,_delta))).
+	ts(f,22,JUNE=[a,b,JUNE..]).
+	ts(f,23,Joan=fred(A,charlie,zebra(3,Joan))).
+	ts(f,24,_jane=foo(1,[1,2,3,[foo(bar,_jane..),1,2]])).
+	ts(f,25,B=fx(fx(_alpha,A),fx(B,_delta))).
+	ts(f,26,B=fx(fx(_alpha,[A,B,fx(_alpha,[_delta..]),C]),fx([A,B,fx(_delta,[_alpha..]),C],_delta))).
+	ts(g,27,foo(X..)).
+	ts(g,28,foo(X,Y..)).
+	ts(g,29,foo(X,Y,Z..)).
+	ts(g,30,foo(tim)).
+	ts(g,31,foo(tim,tom)).
+	ts(g,32,foo(tim,tom,terry)).

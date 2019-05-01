@@ -1,0 +1,73 @@
+	/*******************************************************\
+	*							*
+	*	BNR Prolog Regression Test Suite:		*
+	*	================================		*
+	*							*
+	*	Program:	Unification test 'c'		*
+	*	Version:	2.10				*
+	*	File:		rtest0002c			*
+	*	Written:	I Sykes		Date: 24/06/97	*
+	*	Revised:			Date:		*
+	*							*
+	*							*
+	*	Main predicate is 'unify_c'			*
+	*							*
+	\*******************************************************/
+
+
+
+
+%	Third unification test:  Simple unification of selected group/s against selected group/s.
+%	-----------------------   NB: Use of a (or the anonymous) variable applies all cases.
+
+	unify_c(A,B):-	%  unify_c(+[Group_code list],+[Group_code list])
+		list(A),
+		list(B),
+		member(X,A),
+		member(Y,B),
+		unify_group(X,Y),!.
+	unify_c(X,B):-	%  unify_c(+Group_code,+[Group_code list])
+		not(list(X)),
+		list(B),
+		member(Y,B),
+		unify_group(X,Y),!.
+	unify_c(A,Y):-	%  unify_c(+[Group_code list],+Group_code)
+		not(list(Y)),
+		list(A),
+		member(X,A),
+		unify_group(X,Y),!.
+	unify_c(X,Y):-	%  unify_c(+Group_code,+Group_code)
+		not(list(X)),
+		not(list(Y)),
+		unify_group(X,Y),!.
+	unify_c(_..):-
+		write("\nUnification test 'unify_c' completed.\n").
+
+
+	unify_group(X,Y):-	%  unify_group(+Group_code,+Group_code)
+		write("\nUnification of groups ",X," and ",Y,".\n"),
+		ts(X,ID1,A),
+		ts(Y,ID2,B),
+		ID1 @\= ID2,
+		write("\nTerms "),
+		A=B ->
+			[write(ID1," and ",ID2,"\tpassed"),
+			ts(_,ID1,C),write("\t\t",C),
+			ts(_,ID2,D),write("\t<->\t",D)];
+			write(ID1," and ",ID2,"\tFAILED","\t\t",A,"\t<->\t",B),
+		fail.
+	unify_group(X,Y):-
+		write("\nUnification of groups ",X," and ",Y," completed.\n"),
+		fail.
+
+
+
+%	Load test data as required:
+%	==========================
+	$initialization:- load_test_data.
+
+		load_test_data:-
+			not(context("rtest0002t")),
+			load_context("rtest0002t").
+		load_test_data.	
+

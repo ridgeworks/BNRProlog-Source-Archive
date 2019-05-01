@@ -1,0 +1,23 @@
+Rtest0002	Notes:
+=====================
+
+	The 'rtest0002?' files are prolog contexts each with a main test predicate.
+
+	'rtest0002' and 'rtest0002.1' are 'big bang' tests...they run all the test combinations and permutations.
+
+	'rtest0002a-d' allow for a more precise application of tests with main predicates 'unify_a-d'..
+	
+	'rtest0002t' contains tests, test types and test values each with reference values. These references facilitate 
+		the precise selection of tests and values.
+		
+	
+	The tests:
+	---------
+	'unify_a' runs each test value against each test type looking for 'obvious' unification problems.
+	'unify_b' runs groups of test values against each other for a nominated test.
+	'unify_c' performs simple unification of groups of test values, singly or in lists, against each other.
+	'unify_d' performs simple unification of test values or groups of test values, singly or in lists, against each other.
+	
+	
+	NB: 'unify_d' provides the most flexibility.
+	

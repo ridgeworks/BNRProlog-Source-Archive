@@ -1,0 +1,82 @@
+	/*******************************************************\
+	*							*
+	*	BNR Prolog Regression Test Suite:		*
+	*	================================		*
+	*							*
+	*	Program:	Unification test 'd'		*
+	*	Version:	2.10				*
+	*	File:		rtest0002d			*
+	*	Written:	I Sykes		Date: 24/06/97	*
+	*	Revised:			Date:		*
+	*							*
+	*							*
+	*	Main predicate is 'unify_d'			*
+	*							*
+	\*******************************************************/
+
+
+%	Fourth unification test:  Simple unification of selected group/s or 
+%	-----------------------   test/s against selected group/s or test/s.
+
+	unify_d(A,B):-	%  unify_d(+[Group/test list],+[Group/test list])
+		list(A),
+		list(B),
+		member(X,A),
+		member(Y,B),
+		unify(X,Y),!.
+	unify_d(X,B):-	%  unify_d(+Group/test,+[Group/test list])
+		not(list(X)),
+		list(B),
+		member(Y,B),
+		unify(X,Y),!.
+	unify_d(A,Y):-	%  unify_d(+[Group/test list],+Group/test)
+		not(list(Y)),
+		list(A),
+		member(X,A),
+		unify(X,Y),!.
+	unify_d(X,Y):-	%  unify_d(+Group/test,+Group/test)
+		not(list(X)),
+		not(list(Y)),
+		unify(X,Y),!.
+	unify_d(_,_):-
+		write("\nEnd unification test 'unify_d'.\n").
+
+	unify(A,B):-
+		integer(A),
+		integer(B),
+		unify_all(_,_,A,B),!.
+	unify(A,B):-
+		symbol(A),
+		symbol(B),
+		unify_all(A,B,_,_),!.
+	unify(A,B):-
+		symbol(A),
+		integer(B),
+		unify_all(A,_,_,B),!.
+	unify(A,B):-
+		symbol(B),
+		integer(A),
+		unify_all(_,B,A,_).
+
+		unify_all(X,Y,ID1,ID2):- %  unify_all(+Group_code,+Group_code,+test_ID,+test_ID)
+			ts(X,ID1,A),
+			ts(Y,ID2,B),
+			write("\nTerms "),
+			A=B ->
+				[write(ID1," and ",ID2,"\tpassed"),
+				ts(_,ID1,C),write("\t\t",C),
+				ts(_,ID2,D),write("\t<->\t",D)];
+				write(ID1," and ",ID2,"\tFAILED","\t\t",A,"\t<->\t",B),
+			fail.
+
+
+
+%	Load test data as required:
+%	==========================
+	$initialization:- load_test_data.
+
+		load_test_data:-
+			not(context("rtest0002t")),
+			load_context("rtest0002t").
+		load_test_data.	
+

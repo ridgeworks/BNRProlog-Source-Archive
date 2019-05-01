@@ -1,0 +1,45 @@
+
+{0 {1 0 OrdStringColl 3.1 } 20 0 } 
+0
+0
+0
+0
+0
+0
+1
+79 154 
+72 100 
+150 10 
+320 520 
+0
+0
+
+{2 @1 20 1 17 "utilities.shared\x00"
+} 
+
+{3 {4 0 Set 3.1 } 0 0  0 
+} 
+1
+1
+0
+150 0 
+264 328 
+710 500 
+1
+
+{5 {6 0 ObjArray 3.1 } 0 0  10 0  
+{7 {8 0 PosRec 3.1 } 61 "/bnr/users/u9/sniff/ssws/BNRProlog/utilities/slee_listener.p\x00"
+17 "utilities.shared\x00"
+0
+0
+0
+1
+0
+0
+0 
+}  0  0  0  0  0  0  0  0  
+} 
+1
+0
+0
+0

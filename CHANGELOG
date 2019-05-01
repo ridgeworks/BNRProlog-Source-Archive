@@ -1,0 +1,662 @@
+#
+#	$Header: /disc9/sniff/repository/BNRProlog/RCS/CHANGELOG,v 1.27 2000/11/03 03:13:15 mcclymon Exp $
+#
+#
+#	$Log: CHANGELOG,v $
+# Revision 1.27  2000/11/03  03:13:15  mcclymon
+# Updated for version 5.0.6
+#
+# Revision 1.26  1999/04/07  07:11:46  csavage
+# Fixed send[TCP/UDP] to send null terminated strings.
+#
+# Revision 1.25  1999/01/06  23:58:25  csavage
+# Updated for 5.0.5 release
+#
+# Revision 1.24  1998/10/26  01:47:47  csavage
+# *** empty log message ***
+#
+# Revision 1.23  1998/08/13  04:21:29  csavage
+# *** empty log message ***
+#
+# Revision 1.22  1998/07/28  00:17:57  csavage
+# *** empty log message ***
+#
+# Revision 1.21  1998/06/10  02:36:18  csavage
+# 5.0.4 release changes
+#
+# Revision 1.20  1998/03/31  11:24:56  csavage
+# *** empty log message ***
+#
+# Revision 1.19  1998/03/26  16:43:59  csavage
+# *** empty log message ***
+#
+# Revision 1.18  1998/03/13  11:19:19  csavage
+# *** empty log message ***
+#
+# Revision 1.17  1998/03/13  11:06:23  harrisj
+# *** empty log message ***
+#
+# Revision 1.16  1998/03/13  09:02:43  csavage
+# *** empty log message ***
+#
+# Revision 1.15  1998/03/10  09:22:18  wcorebld
+# *** empty log message ***
+#
+# Revision 1.14  1998/03/10  09:03:15  csavage
+# *** empty log message ***
+#
+# Revision 1.13  1998/03/10  08:34:23  harrisj
+# *** empty log message ***
+#
+# Revision 1.12  1998/02/25  08:21:43  csavage
+# *** empty log message ***
+#
+# Revision 1.11  1998/02/13  00:29:44  wcorebld
+# *** empty log message ***
+#
+# Revision 1.10  1998/02/13  11:21:55  csavage
+# *** empty log message ***
+#
+# Revision 1.9  1998/01/05  03:23:11  wcorebld
+# *** empty log message ***
+#
+# Revision 1.8  1997/12/23  13:17:16  harrisj
+# *** empty log message ***
+#
+# Revision 1.7  1997/09/16  10:32:07  harrisj
+# *** empty log message ***
+#
+# Revision 1.6  1997/05/14  10:52:33  harrisj
+# *** empty log message ***
+#
+# Revision 1.5  1997/04/02  00:07:38  wcorebld
+# Released v4.4.9
+#
+# Revision 1.4  1997/03/24  02:08:37  wcorebld
+# Released v4.4.8
+#
+# Revision 1.3  1997/03/24  00:06:47  jonesb
+# Updated for SR 60013472 comments
+#
+# Revision 1.2  1997/03/21  14:11:44  harrisj
+# *** empty log message ***
+#
+# Revision 1.1  1997/03/14  17:12:28  harrisj
+# Initial version
+#
+#
+#
+
+SR Reference: 		60017304
+Type of change:		bug fix
+Reviewed by: 		Yan Zhou, Brenda Leung
+Files changed: 		wollongong.c
+Documentation changed: 	None
+Summary: 		list_to_asn1() was not handling a tag value of zero 
+			correctly (0 is a special case)
+Additional comments: 	None
+
+----------------------------------------------------------------------------
+
+SR Reference:		60014787
+Type of change:		feature
+Reviewed by:		Andrew Zahra, Ben Jones
+Files changed:		All makefiles, all PDF files
+Documentation changed:	None
+Summary:		Makefiles rewritten to use SNiFF goals.  Added 
+			prologSupport sub-project which holds make
+			support files.
+Additional comments:
+
+----------------------------------------------------------------------------
+
+SR Reference:		60014760
+Type of change:		bug fix
+Reviewed by:		Darren Pawson, Yan Zhou
+Files changed:		ioprim.c
+Documentation changed:	None
+Summary:		handlePipeIO() modified to properly handle SETEOF
+Additional comments:	None
+
+----------------------------------------------------------------------------
+
+SR Reference:		60014721
+Type of change:		bug fix
+Reviewed by:		Darren Pawson, Yan Zhou
+Files changed:		ProWindows.c
+Documentation changed:	None
+Summary:		renamewindow() wasn't updating the icon name
+Additional comments:	None
+
+----------------------------------------------------------------------------
+
+SR Reference:		60016927
+Type of change:		feature
+Reviewed by:		Ben Jones, Evan Turnbull
+Files changed:		debugger.p, debugger_CAF.p
+Documentation changed:	None
+Summary:		Debugger couldn't display local predicates
+Additional comments:	None
+----------------------------------------------------------------------------
+
+SR Reference:		60017136
+Type of change:		feature
+Reviewed by:		Ben Jones, Evan Turnbull
+Files changed:		BNRProlog.h external.c
+Documentation changed:	None
+Summary:		Added a function to the external interface to enable
+			primitives to get their Prolog primitive name
+Additional comments:	None
+----------------------------------------------------------------------------
+
+SR Reference:		60017729
+Type of change:		bug fix
+Reviewed by:		Ben Jones, Evan Turnbull
+Files changed:		base1.p, prim.c
+Documentation changed:	None
+Summary:		freeze primitive could not handle adding additional
+			constraints on a tailvar
+Additional comments:	None
+----------------------------------------------------------------------------
+
+SR Reference:		60013472
+Type of change:		bug fix
+Reviewed by:		Jason Harris, Evan Turnbull
+Files changed:		core.c
+Documentation changed:	None
+Summary:		headCount array items were being unnecessarily incremented
+			when debugging was turned off
+Additional comments:	None
+
+#### BNRP v4.4.8 Released 24 March 1997 ####
+
+SR Reference:		60017765
+Type of change:		bug fix
+Reviewed by:		Ben Jones, Yan Zhou
+Files changed:		top level makefile
+Documentation changed:	None
+Summary:		make Release goal was copying unnecessary files to the
+			release directory
+Additional comments:	None
+----------------------------------------------------------------------------
+
+SR Reference:		60017766
+Type of change:		bug fix
+Reviewed by:		Ben Jones, Yan Zhou
+Files changed:		prologSupport.shared
+Documentation changed:	None
+Summary:		prologSupport project not being updated properly.
+			Added a makefile so that it could be updated
+Additional comments:	None
+----------------------------------------------------------------------------
+
+SR Reference:		60018210
+Type of change:		bug fix
+Reviewed by:		Ben Jones, Yan Zhou
+Files changed:		core.c, interpreter.c
+Documentation changed:	None
+Summary:		The body escape opcodes cutexec (0xE6) and dcut (0x02) 
+			in were reading a byte from the ppc as an unsigned char 
+			when it should have been signed.  This only occurs when 
+			a garbage collection is being done in these opcodes as 
+			well.  The byte being read is the number of arguments of 
+			the call.  A call with an indeterminate number of arguments 
+			has a negative arity!  The garbage had to modified to use the 
+			absolute value of the number of arguments when processing the 
+			tcb arguments.
+
+Additional comments:	None
+
+#### BNRP v4.4.9 Released 2 April 1997 ####
+
+
+SR Reference:		60018828
+Reviewed by:		Gareth Collins, Jarek Mazur
+Files changed:		interpreter.c
+Documentation changed:	None
+Summary:		unify() modified to allow tail variables not contained
+			in lists/structures to be unified.
+Additional comments:	None
+----------------------------------------------------------------------------
+
+SR Reference:		60018921
+Reviewed by:		Gareth Collins, Jarek Mazur
+Files changed:		compile.p, base4.p
+Documentation changed:	None
+Summary:		compiler and assert will fail when given a clause 
+			whose clause head functor is a variable.
+Additional comments:	None
+----------------------------------------------------------------------------
+
+SR Reference:		60019238
+Reviewed by:		Gareth Collins, Jarek Mazur
+Files changed:		fsysprim.c, hardware.c, wollongong.c
+Documentation changed:	None
+Summary:		Functions that use dates have been modified to use
+			a 4 digit year instead of 2 digits.
+Additional comments:	None
+----------------------------------------------------------------------------
+
+SR Reference:		60019360
+Reviewed by:		Gareth Collins, Jarek Mazur
+Files changed:		networkTCP.c, networkUDP.c
+Documentation changed:	None
+Summary:		Enabled the SO_REUSEADDR option for TCP/UDP sockets.
+			Allows the socket to be reused immediately.
+Additional comments:	None
+----------------------------------------------------------------------------
+
+SR Reference:		60022362
+Reviewed by:		Evan Turnbull, Mark Webby
+Files changed:		BNRP.mk, prim.c prim.h utility.c
+Documentation changed:	woll-docs 0701 Added finite predicate to arithmetic 
+			chapter
+Summary:		Added finite(+numeric) primitive to determine if a
+			number is finite or not.  BNRP.mk changed to include
+			proper math library (+DA1.1)
+Additional comments:	None
+----------------------------------------------------------------------------
+
+SR Reference:		60022729
+Reviewed by:		Jarek Mazur, Evan Turnbull
+Files changed:		BNRProlog.h external.c
+Documentation changed:	0702 BNRP External Interface
+Summary:		Added BNRP_listLength to external interface.  BNRP_tag
+			enum modified so that BNRP_invalid and BNRP_end are the
+			same.
+Additional comments:	
+----------------------------------------------------------------------------
+
+SR Reference:		60022731
+Reviewed by:		Jarek Mazur, Evan Turnbull
+Files changed:		base.h, BNRProlog.h, context.c, context.h, embed.c,
+			external.c, hash.c, hash.h, ioprim.c, ioprim.h,
+			loader.c, loader.h, prim.c, prim.h, procs.c
+Documentation changed:	0702 BNRP External Interface
+Summary:		changed char * to const char *.
+Additional comments:	
+----------------------------------------------------------------------------
+
+SR Reference:		60029761
+Reviewed by:		Mark Webby, Yan Zhou
+Files changed:		prim.c, base1.p
+Documentation changed:	0701 BNRP Reference Manual
+Summary:		Added memory_status\2 which omits high water marks and
+			context and state space status.
+Additional comments:	
+----------------------------------------------------------------------------
+
+SR Reference:		60029902
+Reviewed by:		Mark Webby, Jarek Mazur
+Files changed:		BNRP.mk, BNRPlinker.mk
+Documentation changed:	none
+Summary:		Use multi-threaded compiler on AIX.  Use OPTIMISE_LEVEL
+			to specify optimisation
+Additional comments:	
+----------------------------------------------------------------------------
+
+SR Reference:		60030613
+Reviewed by:		Mark Webby, Jarek Mazur
+Files changed:		networking.p
+Documentation changed:	none
+Summary:		receiveUDPterm was not instantiating the error code
+			to zero when it was successful in receiving and decoding
+			a message.
+Additional comments:	
+----------------------------------------------------------------------------
+
+#### BNRP v4.4.10 Released 18 September 1997 ####
+
+SR Reference:		60035072
+Reviewed by:		Mark Webby, Evan Turnbull
+Files changed:		fsysprim.c, fsysprim.h, utility.c
+Documentation changed:	0701 BNRP Reference Manual
+Summary:		Added gmtime primitive to return time relative to GMT
+Additional comments:	
+----------------------------------------------------------------------------
+
+SR Reference:		60035093
+Reviewed by:		Mark Webby, Evan Turnbull
+Files changed:		prim.c, prim.h, utility.c
+Documentation changed:	0701 BNRP Reference Manual
+Summary:		Added globalCounter primitive which returns an integer
+			starting at zero.  The integer is incremented each time
+			the primitive is called.
+Additional comments:	
+----------------------------------------------------------------------------
+
+SR Reference:		60040122
+Reviewed by:		Mark Webby, Evan Turnbull
+Files changed:		parse.c, parse.h, utility.c
+Documentation changed:	0701 BNRP Reference Manual
+Summary:		Added capitalsAsVariables(X) primitive which changes how
+			strings starting with capitals are treated.  If X is "true"
+			then all strings starting with a capital are considered to
+			be variables.  If X is "false" then strings starting with
+			capitals are considered to be symbols.  If X is a variable,
+			then the current state is queried.
+Additional comments:	
+----------------------------------------------------------------------------
+
+SR Reference:           60042695
+Reviewed by:            Mark Webby, Jarek Mazur
+Files changed:          ioprim.c
+Documentation changed:  None
+Summary:                Modified BNRP_displayValue to quote the "!" symbol when
+			it is a structure functor.
+Additional comments:
+----------------------------------------------------------------------------
+
+SR Reference:           60040327
+Reviewed by:            Jarek Mazur, Yan Zhou
+Files changed:          base0.p, BNRP.mk, makefile (build_base)
+Documentation changed:  None
+Summary:                Removed hard-coded version information and made
+			it part of BNRP.mk
+Additional comments:
+----------------------------------------------------------------------------
+
+SR Reference:           60041372
+Reviewed by:            Jarek Mazur, Yan Zhou
+Files changed:          BNRProlog.h, external.c
+Documentation changed:  0702 BNRP External Interface Guide
+Summary:                Added BNRP_dumpTerm to external interface to print
+			terms
+Additional comments:
+----------------------------------------------------------------------------
+
+SR Reference:           60041382
+Reviewed by:            Jarek Mazur, Yan Zhou
+Files changed:          wollongong.c, wollongong.h
+Documentation changed:  None
+Summary:                list_to_asn1 now sets errno to -9 if it fills the
+			buffer.  Clarified the documentation in the header
+			file
+Additional comments:
+----------------------------------------------------------------------------
+
+SR Reference:           None
+Reviewed by:            Jarek Mazur, Yan Zhou
+Files changed:          BNRP.mk, base.h, core.h, core.c, external.c, hardware.h,
+			interpreter.*, makefile (source), memory.c, shell.c,
+			source.shared, state.c, stats.*, tasking.c, utility.*
+Documentation changed:  None
+Summary:                Modified source to incorporate HSC for AIX.
+Additional comments:
+----------------------------------------------------------------------------
+
+#### BNRP v5.0.0 Released 5 January 1998 ####
+
+----------------------------------------------------------------------------
+
+SR Reference:		60046213
+Reviewed by:		Jason Harris, Tobias Hawker
+Files changed:		parse.c, parse.h, utility.c
+Documentation changed:	0701 BNRP Reference Manual
+Summary:		Added underscoresAsVariable(X) primitive which changes how
+			the '_' character is treated.  If X is "true" then '_' and
+			all strings starting with '_' are considered to be variables.
+			If X is "false" then '_' and strings starting with '_' are
+			considered to be symbols.  If X is a variable, then the 
+			current state is queried.
+Additional comments:	
+----------------------------------------------------------------------------
+
+SR Reference:		60046213
+Reviewed by:		Chris Savage, Tobias Hawker
+Files changed:		external.c
+Documentation changed:	None
+Summary:		Offset for ppc comaprison in BNRP_execute* functions
+			was incorrect for HSC
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		60046213
+Reviewed by:		ChrisSavage, Tobias Hawker
+Files changed:		HSCBodyEscapeClause.incl
+Documentation changed:	None
+Summary:		Handle clause escape calls with zero arguements as a
+			special case
+Additional comments:	
+----------------------------------------------------------------------------
+
+#### BNRP v5.0.1 Released 13 February 1998 ####
+
+----------------------------------------------------------------------------
+SR Reference:		60047018
+Reviewed by:		Justin Urbanski, Jason Harris
+Files changed:		base.h (added MAXARGS), base5.p (error 42 text), 
+			parse.c (too use MAXARGS)
+Documentation changed:	None
+Summary:		Prolog was 'loosing' arguments if there were more than 
+			126 in a call - there was a check for this, but it was 
+			set to 256.  Reset to 126.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		60047573
+Reviewed by:		Christopher Savage, Jarek Mazur
+Files changed:		HSCheadMacros.incl
+Documentation changed:	None
+Summary:		Unification of longs and floats in neck wasn't aligning
+			values prior to unification.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		60048655
+Reviewed by:		Christopher Savage, Jarek Mazur
+Files changed:		HSCbodyEscMacros.incl
+Documentation changed:	None
+Summary:		VARP_TCB and TVARP_TCB var/tvar filter opcode had a typo
+			which caused the incorrect register to be processed.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		
+Reviewed by:		Christopher Savage, Jason Harris
+Files changed:		check.p, utilities.shared
+Documentation changed:	0839 BNRP User Guide.
+Summary:		Added check to utilities project
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		
+Reviewed by:		Anthony Roberson, Jason Harris
+Files changed:		base4.p
+Documentation changed:	
+Summary:		Added call to $context(Cx, _) at start of definition
+			primitive to prevent seg fault when definition called
+			against non-existant context.
+Additional comments:
+----------------------------------------------------------------------------
+SR Reference:		
+Reviewed by:		Michael McClelland, Jason Harris
+Files changed:		parse.c
+Documentation changed:	
+Summary:		Added special case to BNRP_Parse option 'd' to leave
+			quotes around strings when capitalsAsVariables is 
+			false.
+Additional comments:	Eliminates pre-processing from check utility.
+----------------------------------------------------------------------------
+SR Reference:		
+Reviewed by:		Anthony Roberson, Jason Harris
+Files changed:		check.p
+Documentation changed:	
+Summary:		Removed pre-processor call from $process.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		SR60049744
+Reviewed by:		Anthony Roberson, Jason Harris
+Files changed:		HSCbodyEscMacros.incl
+Documentation changed:	
+Summary:		eval opcodes were causing permanent change into
+			clause mode when it whould only have been re-executing
+			that opcode in clause mode.
+Additional comments:	
+----------------------------------------------------------------------------
+
+#### BNRP v5.0.2 Released 13th March 1998 ####
+
+----------------------------------------------------------------------------
+SR Reference:		
+Reviewed by:		Jason Harris, Evan Turnbull
+Files changed:		HSCbodyEscMacros.incl
+Documentation changed:	
+Summary:		Fix to SR60049744 was causing problems with panel 
+			operations. Adjusted eval opcode fix to compensate.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		
+Reviewed by:		Jason Harris, Evan Turnbull
+Files changed:		base4.p
+Documentation changed:	
+Summary:		Added not(not( around $context/2 call in definition/2 to
+			prevent binding of variable.
+Additional comments:	Fixes problems with definition(_,_) call.
+----------------------------------------------------------------------------
+SR Reference:		
+Reviewed by:		Jason Harris, Chris Savage
+Files changed:		network.h, network.c, networkTCP.c, networkUDP.c
+Documentation changed:	
+Summary:		Added typedef for optVarSizeT to correct changes in
+			move to AIX 4.2.1 from AIX 4.1.5.  Adjusted other
+			typedefs to suit.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		SR60050964
+Reviewed by:		Jason Harris, Evan Turnbull
+Files changed:		networkTCP.p
+Documentation changed:	
+Summary:		In case of opensocket(_,tcp,_), now let the system
+			assign a port number rather than prolog finding one.
+			Removed REUSEADDR for VART case as well.
+Additional comments:	Stops prolog assigning same port twice.
+----------------------------------------------------------------------------
+SR Reference:		SR60050967
+Reviewed by:		Jason Harris, Evan Turnbull
+Files changed:		networkUDP.p
+Documentation changed:	
+Summary:		In case of opensocket(_,udp,_), now let the system
+			assign a port number rather than prolog finding one.
+			Removed REUSEADDR for VART case as well.
+Additional comments:	Stops prolog assigning same port twice.
+----------------------------------------------------------------------------
+SR Reference:		SR60050734
+Reviewed by:		Jason Harris, Ian Sykes
+Files changed:		networking.p, network[TCP,UDP].[c,h], utility.c
+Documentation changed:	0701 - Reference maual, 0839 - User Guide
+Summary:		Added primitives to allow transmission of integer 
+			(in the range [0..255]) lists of up to 8k over TCP 
+			and UDP connections.
+Additional comments:	
+----------------------------------------------------------------------------
+
+#### BNRP v5.0.3 Released 31st March 1998 ####
+
+----------------------------------------------------------------------------
+SR Reference:		
+Reviewed by:		Jason Harris
+Files changed:		utility.c, parse.h, parse.c, check.p
+Documentation changed:	0701 - Reference maual
+Summary:		Addition of a stripQuotes primitive to allow the toggling
+			of how quotes are handled when capsAsVars is false.  The
+		        default is to remove quotes - this allows quotes to be kept
+			for check utility.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		SR 60061321
+Reviewed by:		Jason Harris
+Files changed:		HSCbodyEscMacros.incl
+Documentation changed:	
+Summary:		Loading a word for ppc instead of a byte was causing
+			unification problem in GEN test-harness. Also involved
+			mis-alignment during unification.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		SR 60058438
+Reviewed by:		Jason Harris
+Files changed:		HSCbodyMacros.incl, HSCheadMacros.incl
+Documentation changed:	
+Summary:		Recall of a large structure was causing coredump. Was
+			traced to rotating a register, but not retaining enough
+			information. Also involved COPY_VALP looping error.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		
+Reviewed by:		Jason Harris
+Files changed:		base_listener.p, slee_listener.p
+Documentation changed:	
+Summary:		The name of the "BNR Prolog Console" was changed to 
+			"BNRPrologConsole" to make deleting the file created 
+			easier.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		SR 60063005
+Reviewed by:		Jason Harris, Grant Wilson
+Files changed:		networking.p, networkTCP.c, networkUDP.c
+Documentation changed:	
+Summary:		When prolog was sent multiple null-terminated strings
+			from C, the first was received, the rest lost. Modified
+			to look for more messages when a null is encountered
+			in the receive buffer.
+Additional comments:	
+----------------------------------------------------------------------------
+
+#### BNRP v5.0.4 Released 10th June 1998 ####
+
+----------------------------------------------------------------------------
+SR Reference:		SR 60067219
+Reviewed by:		David McClymont, Anthony Roberson
+Files changed:		slee_listener.p
+Documentation changed:	
+Summary:		Added a publicly accessable termination function that
+			allows user to exit slee_listener when it is loaded as
+			a lower context in the stack. "slee_termination".
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		SR 60068459
+Reviewed by:		Jason Harris
+Files changed:		HSCheadMacros.incl
+Documentation changed:	
+Summary:		The check for cyclic structures during unification 
+			was based on old unification heap that worked <---head
+			whereas BNRProlog is implemented as head-------> .  
+			Therefore it was checking garbage memory.  Reversed 
+			the direction of the search
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		SR 60042976
+Reviewed by:		Jason Harris
+Files changed:		prim.c
+Documentation changed:	
+Summary:		The call to the operating system finite/1 was casting
+			the floating point number incorrectly for AIX. Found
+			correct casting and implemented with platform #ifdef 
+			compile-time flags.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		SR 60079353
+Reviewed by:		Jason Harris
+Files changed:		HSCbodyEscMacros.incl
+Documentation changed:	
+Summary:		A Warning was occuring when linking the BNRP library
+			into another project that the "bl  .pow" call (x2) 
+			was not followed by a recognised "nop". Added "nop".
+Additional comments:	
+----------------------------------------------------------------------------
+
+#### BNRP v5.0.5 Released 7th January 1999 ####
+----------------------------------------------------------------------------
+SR Reference:		SR 60086401
+Reviewed by:		Jason Harris
+Files changed:		networkTCP.c, networkUDP.c
+Documentation changed:	none
+Summary:		sendTCP and sendUDP were not sending null-terminated 
+			strings. Added +1 to msglen to send null as well.
+Additional comments:	
+----------------------------------------------------------------------------
+SR Reference:		None
+Reviewed by:		David McClymont
+Files changed:		BNRP.mk
+Documentation changed:	None
+Summary:		Updated for version 5.0.6 and added +a1 compile directive
+			to compile options for HPUX10.20.
+Additional comments:	
+----------------------------------------------------------------------------
+
+#### BNRP v5.0.6 Released 3 November 2000 ####

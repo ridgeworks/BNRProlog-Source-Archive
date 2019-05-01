@@ -1,0 +1,250 @@
+	/*******************************************************\
+	*							*
+	*	BNR Prolog Regression Test Suite:		*
+	*	================================		*
+	*							*
+	*	Program:	Unification test		*
+	*	Version:	2.2.1				*
+	*	File:		RTEST0002			*
+	*	Written:	I Sykes		Date: 15/01/98	*
+	*	Revised:	I Sykes		Date: 30/01/98	*
+	*							*
+	*							*
+	*	Main predicate is 'test0002'			*
+	*							*
+	\*******************************************************/
+
+
+%	Test predicates:
+%	===============
+
+	test0002:-	%  Tests all for all tests.
+		unify_a,
+		unify_B,
+		unify_C,
+		unify_D.
+
+	unify_B:- unify_b(_,_,_).
+
+	unify_C:- unify_c(_,_).
+
+	unify_D:-
+		findall(X,ts(_,X,_),List),
+		unify_d(List,List).
+
+
+
+%	Simple unification test:  Runs the test terms through variations of basic unification.
+%	-----------------------
+
+	unify_a:-
+		write_test_test("\nStart simple unification test...\n"),
+		ts(_,Z1,X),
+		test_type(W),
+		write_test_test("\n",W,"\t"),
+		test_unify(W,X,Y) ->
+			write_test(Z1,"\tPASSED","\t\t",X);
+			write_test(Z1,"\tFAILED","\t\t",X),
+		fail.
+	unify_a:- write_test("\nSimple unification tests completed.\n").
+
+
+
+%	Second unification test:  Runs selected group against selected group for selected test.
+%	-----------------------    NB: Use of a (or the anonymous) variable applies all cases.
+
+	unify_b(X,Y,Z):-	%  unify_b(+Group_code,+Group_code,+Test_type)
+		write_test("\nStart second unification test...\n"),
+		ts(X,ID1,A),
+		ts(Y,ID2,B),
+		ID1 @\= ID2,
+		test_type(Z),
+		write_test("\n",Z,"\t"),
+		test_unify(Z,A,B) ->
+			[write_test(ID1,"/",ID2,"\tpassed"),
+			ts(_,ID1,C),write_test("\t\t",C),
+			ts(_,ID2,D),write_test("\t<->\t",D)];
+			write_test(ID1,"/",ID2,"\tFAILED","\t\t",A,"\t<->\t",B),
+		fail.
+	unify_b(_..):- write_test("\nUnification test 'unify_b' completed.\n").
+
+
+
+%	Third unification test:  Simple unification of selected group/s against selected group/s.
+%	-----------------------   NB: Use of a (or the anonymous) variable applies all cases.
+
+	unify_c(A,B):-	%  unify_c(+[Group_code list],+[Group_code list])
+		list(A),
+		list(B),
+		member(X,A),
+		member(Y,B),
+		unify_group(X,Y),!.
+	unify_c(X,B):-	%  unify_c(+Group_code,+[Group_code list])
+		not(list(X)),
+		list(B),
+		member(Y,B),
+		unify_group(X,Y),!.
+	unify_c(A,Y):-	%  unify_c(+[Group_code list],+Group_code)
+		not(list(Y)),
+		list(A),
+		member(X,A),
+		unify_group(X,Y),!.
+	unify_c(X,Y):-	%  unify_c(+Group_code,+Group_code)
+		not(list(X)),
+		not(list(Y)),
+		unify_group(X,Y),!.
+	unify_c(_..):-
+		write_test("\nUnification test 'unify_c' completed.\n").
+
+
+	unify_group(X,Y):-	%  unify_group(+Group_code,+Group_code)
+		write_test("\nUnification of groups ",X," and ",Y,".\n"),
+		ts(X,ID1,A),
+		ts(Y,ID2,B),
+		ID1 @\= ID2,
+		write_test("\nTerms "),
+		A=B ->
+			[write_test(ID1," and ",ID2,"\tpassed"),
+			ts(_,ID1,C),write_test("\t\t",C),
+			ts(_,ID2,D),write_test("\t<->\t",D)];
+			write_test(ID1," and ",ID2,"\tFAILED","\t\t",A,"\t<->\t",B),
+		fail.
+	unify_group(X,Y):-
+		write_test("\nUnification of groups ",X," and ",Y," completed.\n"),
+		fail.
+
+
+
+
+%	Fourth unification test:  Simple unification of selected group/s or 
+%	-----------------------   test/s against selected group/s or test/s.
+
+	unify_d(A,B):-	%  unify_d(+[Group_code list],+[Group_code list])
+		list(A),
+		list(B),
+		member(X,A),
+		member(Y,B),
+		unify(X,Y),!.
+	unify_d(X,B):-	%  unify_d(+Group_code,+[Group_code list])
+		not(list(X)),
+		list(B),
+		member(Y,B),
+		unify(X,Y),!.
+	unify_d(A,Y):-	%  unify_d(+[Group_code list],+Group_code)
+		not(list(Y)),
+		list(A),
+		member(X,A),
+		unify(X,Y),!.
+	unify_d(X,Y):-	%  unify_d(+Group_code,+Group_code)
+		not(list(X)),
+		not(list(Y)),
+		unify(X,Y),!.
+	unify_d(_,_):-
+		write_test("\nEnd unification test 'unify_d'.\n").
+
+	unify(A,B):-
+		integer(A),
+		integer(B),
+		unify_all(_,_,A,B),!.
+	unify(A,B):-
+		symbol(A),
+		symbol(B),
+		unify_all(A,B,_,_),!.
+	unify(A,B):-
+		symbol(A),
+		integer(B),
+		unify_all(A,_,_,B),!.
+	unify(A,B):-
+		symbol(B),
+		integer(A),
+		unify_all(_,B,A,_).
+
+		unify_all(X,Y,ID1,ID2):- %  unify_all(+Group_code,+Group_code,+ID1,+ID2)
+			ts(X,ID1,A),
+			ts(Y,ID2,B),
+			write_test("\nTerms "),
+			A=B ->
+				[write_test(ID1," and ",ID2,"\tpassed"),
+				ts(_,ID1,C),write_test("\t\t",C),
+				ts(_,ID2,D),write_test("\t<->\t",D)];
+				write_test(ID1," and ",ID2,"\tFAILED","\t\t",A,"\t<->\t",B),
+			fail.
+
+
+%	Ancilliary predicates.
+%	---------------------
+
+	member(X,[X,_..]).
+	member(X,[_,Y..]):-
+		member(X,Y).
+
+
+
+
+%	Unification Tests:
+%	=================
+		
+%	Symetry test.
+%	------------
+	test_unify(symetry_tst,X,Y):- X=Y.
+	test_unify(symetry_tst,X,Y):- Y=X.
+
+
+%	Reflexivity test.
+%	----------------
+	test_unify(reflexivity,X,X):- X=X.
+	test_unify(reflexivity,X,X).
+
+
+%	Transitivity test.
+%	-----------------
+	test_unify(transitivity,X,Y):- X=Z,Z=Y.
+
+%	Unification equivalents:
+%	-----------------------
+%	test_unify(equivalents,X,Y):- write_test(Y,X).
+%
+%	test_unify(equivalents,X,Y):- subsumes(X,Y),X=Y.
+
+
+%	Test types.
+%	----------
+	test_type(symetry_tst).
+	test_type(reflexivity).
+	test_type(transitivity).
+%	test_type(equivalents).
+
+
+%   Test substitutuions.
+%   ===================
+	ts(a,1,fred).
+	ts(a,2,jim_).
+	ts(a,3,"Joan").
+	ts(a,4,'Jane').
+	ts(b,5,JUNE).
+	ts(b,6,Joan).
+	ts(b,7,_jane).
+	ts(c,8,test_unify(X,Y)).
+	ts(c,9,test_unify(X):- X=X).
+	ts(c,10,test_unify(X,Y):- [X=Z,Z=Y]).
+	ts(d,11,[test_unify(X,Y):- X=Z,Z=Y]).
+	ts(d,12,[jim,bob,fred]).
+	ts(d,13,[fred,X..]).
+	ts(d,14,[X..]).
+	ts(d,15,[X,Y..]).
+	ts(d,16,[a,b,JUNE..]).
+	ts(e,17,fred(A,charlie,zebra(3,Joan))).
+	ts(e,18,foo(1,[1,2,3,[foo(bar,_jane..),1,2]])).
+	ts(e,19,fx(fx(_alpha,[A,B,fx(_alpha,[_delta..]),C]),fx([A,B,fx(_delta,[_alpha..]),C],_delta))).
+	ts(e,20,fx(fx(_alpha,A),fx(B,_delta))).
+	ts(f,22,JUNE=[a,b,JUNE..]).
+	ts(f,23,Joan=fred(A,charlie,zebra(3,Joan))).
+	ts(f,24,_jane=foo(1,[1,2,3,[foo(bar,_jane..),1,2]])).
+	ts(f,25,B=fx(fx(_alpha,A),fx(B,_delta))).
+	ts(f,26,B=fx(fx(_alpha,[A,B,fx(_alpha,[_delta..]),C]),fx([A,B,fx(_delta,[_alpha..]),C],_delta))).
+	ts(g,27,foo(X..)).
+	ts(g,28,foo(X,Y..)).
+	ts(g,29,foo(X,Y,Z..)).
+	ts(g,30,foo(tim)).
+	ts(g,31,foo(tim,tom)).
+	ts(g,32,foo(tim,tom,terry)).

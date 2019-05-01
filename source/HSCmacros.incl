@@ -1,0 +1,613 @@
+#
+#  $Header: /disc9/sniff/repository/BNRProlog/source/RCS/HSCmacros.incl,v 1.1 1997/12/22 17:01:23 harrisj Exp $
+#
+#  $Log: HSCmacros.incl,v $
+# Revision 1.1  1997/12/22  17:01:23  harrisj
+# Added support for HSC and to build HSC and non-HSC BNRP
+#
+#
+#
+
+
+define(counter,0)
+
+define(PNAME,`-12($1)')		# env offset
+define(CUTB,`-8($1)')		# env offset
+define(PRE,`-4($1)')		# env offset
+define(LONGINT,0x0ABC)
+define(CONSTRAINTMARK,-1)
+define(CLAUSEHEADER,16)
+define(RINGOFFSET,`-24($1)')
+define(STRUCTHEADER,0x8CBE)
+define(LISTTAG,0xA000)
+define(STRUCTTAG,0x8000)
+define(INTTAG,0xC000)
+define(SYMTAG,0x6000)
+define(VARTAG,0x0000)
+define(SYMINUSE,`20($1)')
+define(DBUGFLAGS,`18($1)')
+define(STDNIL,0x0888)
+define(STDLIST,0x0AAA)
+define(MAXREGS,256)
+define(MAXARGS,255)
+define(CHPT,40)			# size of a choicepoint
+
+define(RNDNEAREST,0x0)
+define(RNDZERO,0x1)
+define(RNDPLUSINF,0x2)
+define(RNDMINUSINF,0x3)
+
+define(LOADREGS, `
+   LOADREGS_PRIM(`counter')')
+
+define(LOADREGS_PRIM, `	# START LOADREGS MACRO
+   lwz		r12,52(temp)
+   lwz		sp,56(temp)
+   lwz		te,72(temp)
+   lwz		lcp,76(temp)
+   lwz		hp,88(temp)
+   lwz		ppc,92(temp)
+   lwz		ce,96(temp)
+   lwz		cp,100(temp)
+   lwz		stp,104(temp)
+   lwz		arg1,128(temp)
+   lwz		arg2,132(temp)
+   lwz		arg3,136(temp)
+   lwz		arg4,140(temp)
+   lwz		arg5,144(temp)
+   lwz		arg6,148(temp)
+   lwz		arg7,152(temp)
+   cmpw		lcp,r12
+   bne		LoadCrit.$1
+   lwz		bh,40(temp)
+   lwz		be,48(temp)
+   b		LoadDone.$1
+LoadCrit.$1:
+   lwz		be,8(lcp)
+   lwz		bh,12(lcp)
+LoadDone.$1:
+   define(`$1', incr($1))
+		# END LOADREGS MACRO')
+
+define(LOADREGS2, `	# START LOADREGS MACRO  
+   lwz		te,72(temp)
+   lwz		lcp,76(temp)
+   lwz		hp,88(temp)
+   lwz		ppc,92(temp)
+   lwz		ce,96(temp)
+   lwz		cp,100(temp)
+   lwz		stp,104(temp)
+   lwz		arg1,128(temp)
+   lwz		arg2,132(temp)
+   lwz		arg3,136(temp)
+   lwz		arg4,140(temp)
+   lwz		arg5,144(temp)
+   lwz		arg6,148(temp)
+   lwz		arg7,152(temp)
+   lwz		be,8(lcp)
+   lwz		bh,12(lcp)')
+
+# usage is SAVEREGS
+define(SAVEREGS, `	# START SAVEREGS MACRO
+   stw		te,72(temp)
+   stw		lcp,76(temp)
+   stw		hp,88(temp)
+   stw		ppc,92(temp)
+   stw		ce,96(temp)
+   stw		cp,100(temp)
+   stw		stp,104(temp)
+   stw		arg1,128(temp)
+   stw		arg2,132(temp)
+   stw		arg3,136(temp)
+   stw		arg4,140(temp)
+   stw		arg5,144(temp)
+   stw		arg6,148(temp)
+   stw		arg7,152(temp)')
+
+define(SAVEARGS, `
+   stw		arg1,128(temp)
+   stw		arg2,132(temp)
+   stw		arg3,136(temp)
+   stw		arg4,140(temp)
+   stw		arg5,144(temp)
+   stw		arg6,148(temp)
+   stw		arg7,152(temp)		# END SAVEARGS MACRO')
+
+define(SAVEREST,`
+   stw		te,72(temp)
+   stw		lcp,76(temp)
+   stw		hp,88(temp)
+   stw		ppc,92(temp)
+   stw		ce,96(temp)
+   stw		cp,100(temp)
+   stw		stp,104(temp)')
+
+define(LOADARGS, `
+   lwz		arg1,128(temp)
+   lwz		arg2,132(temp)
+   lwz		arg3,136(temp)
+   lwz		arg4,140(temp)
+   lwz		arg5,144(temp)
+   lwz		arg6,148(temp)
+   lwz		arg7,152(temp)		# END LOADARGS MACRO')
+
+define(ERROR, `li		r12,$1	# START ERROR MACRO
+   sth		r12,70(temp)
+   b		Recovery		# END ERROR MACRO')
+
+define(RESTORE_STACK,`
+   stw		sp,56(temp)		# start of pdl
+   addi		r4,sp,400		# calculate end of pdl
+   stw		r4,60(temp)		# end of pdl')
+
+define(CALLING_BNRP,`')
+
+define(HEAD_CHANGE,`')
+define(HEAD_WRITE_CHANGE,`')
+define(BODY_CHANGE,`')
+define(BODY_ESCAPE_CHANGE,`')
+define(BODY_ESCCL_CHANGE,`')
+define(DEBUG_RENAMES,`')
+define(DEBUG_EXTERNS,`')
+define(DEBUG_TOCS,`')
+
+# reprocess trail to remove dead items
+# starts from old trailend and works back to current trailend
+# $1 (te) is  old trailend in address register				
+# &2 (scra) is scratch address register
+# &3 (curr) is current trail end (stopping condition)
+# at end, &te is new trail end
+# uses r5,r6 as scratch
+# uses hp, bh and be
+
+define(TRIMTRAIL, `
+   TRIMTRAIL_PRIM($1,$2,$3, `counter')')
+define(TRIMTRAIL_PRIM, `mr		$2,$1	# START TRIMTRAIL MACRO
+TrimLP.$4:
+   cmpw		$3,$2			# stop when read head = current
+   bge		TrimComplete.$4
+   lwzu		r6,-4($2)		# get value
+   lwzu		r5,-4($2)		# get address
+   cmpw		r5,hp			# env stack or heap
+   bge		TrimStk.$4
+   cmpw		bh,r5			# compare address with critical heap address
+   ble		TrimLP.$4		# if greater than critical heap then exit
+   cmpwi	r6,0			# if var or tvar
+   bge		TrimRetrail.$4		# then trail it
+   andis.	r7,r6,0x4000		# is atom bit set?
+   bne		TrimRetrail.$4
+   andis.	r6,r6,0x7000		# clear sgn bit for structure
+   cmpw		bh,r6			# discard if later than critical
+   ble		TrimLP.$4
+   oris		r6,r6,0x8000		# replace sgn bit
+   b		TrimRetrail.$4
+TrimStk.$4:
+   cmpw		r5,be			# was perm variable trailable
+   blt		TrimRetrail.$4
+   cmpw		r5,lcp			# not in env or heap (e.g. atoms)
+   blt		TrimLP.$4
+TrimRetrail.$4:
+   stwu		r6,-4($1)		# retrail value
+   stwu		r5,-4($1)		# retrail address
+   b		TrimLP.$4
+TrimComplete.$4:			# END TRIMTRAIL MACRO
+   define(`$4',incr($4))')
+
+
+# var -  input                          output
+# $1  -  ptr to first clause    	- ptr to clause code
+# $2  -  call arity (+,0,-) 		[0|call arity] or [8000|call arity]
+# $3  -  hashcode (<>0)                 - unchanged
+# $4  -  scratch			- nextsame clause
+# $5  -  label for deterministic call
+# $6  -  label for failure
+# fall through : nondeterministic call
+#
+# note: assumes that (clausekey=0) => (nextcl=nextsame)
+# note: sets sign bit in d0 if arity adjustment is required
+# note: d0 may be a negative word
+define(FINDCLAUSE,`
+   FINDCLAUSE_PRIM($1,$2,$3,$4,$5,$6,`counter')')
+
+define(FINDCLAUSE_PRIM, `li		r3,0	# START FINDCLAUSE MACRO
+   b		FindCLSearch.$7
+FindCLloop.$7:
+   lwz		$1,0($1)
+   cmpwi	$1,0			# get next or nextsame clause
+   beq		$6
+FindCLSearch.$7:
+   lwz		$4,0($1)		# get clause key
+   addi		$1,$1,4			# point to nextclause
+   cmpwi	$4,0
+   beq		FindCLarchK.$7		# branch if has zero key
+   cmpw		$4,$3			# compare keys
+   bne		FindCLloop.$7		# search using next clause
+FindCLarchK.$7:
+   addi		$1,$1,4			# skip nextclause (use nextsame if arity mismatch)
+   lwz		$4,4($1)		# get arity
+   cmpw		$4,$2			# compare arities
+   beq		FindCLSuccess.$7
+   cmpwi	$4,0			# if both negative then mark
+   blt		FindCLCheck.$7
+   cmpwi	$2,0
+   bge		FindCLloop.$7	# both are positive
+   add.		r0,$4,$2
+   cmpwi	r0,-1			# mark if >= -1
+   bge		FindCLMark.$7
+   b		FindCLloop.$7
+FindCLCheck.$7:				# clause arity is negative
+   cmpwi	$2,0
+   blt		FindCLMark.$7	# arity compatible
+   add.		r0,$4,$2		# mark if >= -1
+   cmpwi	r0,-1
+   blt		FindCLloop.$7
+FindCLMark.$7:
+   li		r3,-1
+FindCLSuccess.$7:
+   lwz		$4,0($1)		# get nextsame clause
+   addi		$1,$1,7			# $1  + 1 points to code
+   cmpwi	$4,0			# if zero then deterministic
+   beq		$5			# END FINDCL MACRO
+   define(`$7',incr($7))')
+
+# var -  input                          output
+# $1  -  ptr to first clause    	- ptr to clause code
+# $2  -  [0 |call arity]       		[0|call arity] or [8000|call arity]
+# $3  -  scratch                        - next clause
+# $4  -  label for deterministic call
+# $5  -  label for failure
+# fall through : nondeterministic call
+# note: sets sign bit in d0 if arity adjustment is required
+# note: d0 may be a negative word
+
+define(NEXTCLAUSE,`
+   NEXTCLAUSE_PRIM($1,$2,$3,$4,$5,`counter')')
+
+define(NEXTCLAUSE_PRIM, `li		r3,0		# START NEXTCLAUSE MACRO
+   b		NextCLSearch.$6
+NextCLloop.$6:
+   lwz		$1,4($1)		# next clause in seq. order
+   cmpwi	$1,0			# is end of chain?
+   beq		$5
+NextCLSearch.$6:
+   lwz		$3,12($1)		# get clause arity
+   cmpw		$2,$3			# compare arities
+   beq		NextCLSuccess.$6
+   cmpwi	$3,0			# if both negative then mark
+   blt		NextCLCheck.$6
+   cmpwi	$2,0
+   bge		NextCLloop.$6	# both are positive
+   add.		r0,$3,$2
+   cmpwi	r0,-1			# mark if >= -1
+   bge		NextCLMark.$6
+   b		NextCLloop.$6
+NextCLCheck.$6:				# clause arity is negative
+   cmpwi	$2,0
+   blt		NextCLMark.$6	# arity compatible
+   add.		r0,$3,$2		# mark if >= -1
+   cmpwi	r0,-1
+   blt		NextCLloop.$6
+NextCLMark.$6:
+   li		r3,-1
+NextCLSuccess.$6:
+   lwz		$3,4($1)		# get next clause
+   addi		$1,$1,15		# $1 + 1 points to code
+   cmpwi	$3,0			# if zero then deterministic
+   beq		$4			# END NEXTCL MACRO
+   define(`$6',incr($6))')
+
+define(PUT_IN_TCB_REG, `
+   addi		r12,temp,124		# address of TCB regs
+   rlwinm	r11,$1,2,0,31		# multiply reg # by 4
+   stwx		$2,r12,r11		# store in TCB reg')
+
+define(RESET_CRITICAL, `
+   lwz		be,8(lcp)		# load critical env
+   lwz		bh,12(lcp)		# load critical hp
+   lwz		r12,20(lcp)		# get trail end
+   TRIMTRAIL(r12,r9,te)			# trim the trail
+   mr		te,r12			# update TCB te')
+
+define(CASETRM,`
+   CASETRM_PRIM(`counter',$1,$2,$3)')
+define(CASETRM_PRIM,`
+   andis.	r0,$2,0x4000		# test for atom
+   bne		casetrm_done.$1
+   andis.	r0,$2,0x2000		# check for list bit
+   clrlwi	$2,$2,3			# clear top 3 bits
+   oris		$2,$2,0x2000		# put in addr bit
+   bne		$3
+   b		$4
+casetrm_done.$1:
+   define(`$1',incr($1))')
+   
+define(DREF,`
+   DREF_PRIM(`counter',$1,$2,$3)')
+
+define(DREF_PRIM,`
+   cmpwi	$2,0			# is it a var?
+   blt		dref_done.$1		# if not then done
+   DREFV($2,$3,$4)
+   define(`$1',decr($1))
+dref_done.$1:
+   define(`$1',incr($1))')
+      
+define(DREFV,`
+   DREFV_PRIM(`counter',$1,$2,$3)')
+
+define(DREFV_PRIM,`
+   oris		$2,$2,0x2000		# set address bit of var
+drefv_loop.$1:
+   mr		$3,$2			# get into address register
+   lwz		$2,0($3)		# deref
+   cmpwi	$2,0
+   ble		drefv_done.$1
+   oris		$2,$2,0x2000		# set address bit of var
+   cmpw		$2,$3
+   beq		$4
+   b		drefv_loop.$1
+drefv_done.$1:
+   define(`$1',incr($1))')
+
+define(DREFTV,`
+   DREFTV_PRIM(`counter',$1,$2,$3,$4,$5)')
+
+define(DREFTV_PRIM,`
+dreftv_loop.$1:
+   lwz		$3,0($2)
+   addi		$2,$2,4
+   cmpwi	$3,0
+   blt		$4			# not var
+   beq		$6			# end of sequence
+   andis.	r0,$3,0x2000		# is tvar?
+   beq		$5			# is a variable
+   addi		r0,$2,-4
+   cmpw		r0,$3			# check for unbound
+   mr		$2,$3
+   bne		dreftv_loop.$1
+   define(`$1',incr($1))')
+
+define(GET_TCB_TERM,`
+   GET_TCB_TERM_PRIM($1,`counter')')
+
+define(GET_TCB_TERM_PRIM,`
+   lbzu		$1,1(ppc)
+   cmpwi	$1,2
+   blt		get_1.$2
+   beq		get_2.$2
+   cmpwi	$1,4
+   blt		get_3.$2
+   beq		get_4.$2
+   cmpwi	$1,6
+   blt		get_5.$2
+   beq		get_6.$2
+   cmpwi	$1,8
+   blt		get_7.$2
+   addi		r4,temp,124
+   rlwinm	$1,$1,2,22,31
+   lwzx		$1,r4,$1
+   b		get_term_done.$2
+get_1.$2:
+   mr		$1,arg1
+   b		get_term_done.$2
+get_2.$2:
+   mr		$1,arg2
+   b		get_term_done.$2
+get_3.$2:
+   mr		$1,arg3
+   b		get_term_done.$2
+get_4.$2:
+   mr		$1,arg4
+   b		get_term_done.$2
+get_5.$2:
+   mr		$1,arg5
+   b		get_term_done.$2
+get_6.$2:
+   mr		$1,arg6
+   b		get_term_done.$2
+get_7.$2:
+   mr		$1,arg7
+   b		get_term_done.$2
+get_term_done.$2:
+   define(`$2',incr($2))')
+
+define(ALLOC,`
+   ALLOC_PRIM(`counter')')
+
+define(ALLOC_PRIM,`
+   mr		r11,ce					# store old ce for later
+   cmpw		ce,be					# compare ce and be
+   bge		NewEnv.$1
+   mr		ce,be					# ce is now be
+   b		DoneNewEnv.$1
+NewEnv.$1:
+   lbz		r12,0(cp)				# get save byte from caller
+   addi		r12,r12,1				# add 1 to save byte
+   rlwinm	r12,r12,2,0,31				# multiply save byte by 4
+   add		ce,ce,r12				# increment ce
+DoneNewEnv.$1:
+   lwz		r12,120(temp)				# get procname
+   stw		r12,0(ce)				# store procname in new env
+   lwz		r12,80(temp)				# get cutb
+   stwu		r12,4(ce)				# store cutb in new env
+   stwu		r11,4(ce)				# store previous env in ce
+   stwu		cp,4(ce)				# store cp in new env
+   define(`$1',incr($1))')
+
+
+define(FIX_ARITIES,`
+   SAVEARGS
+   lwz		r12,124(temp)			# get caller arity
+   lwz		r11,-3(ppc)				# get callee arity
+   mr		r10,r11					# copy callee arity
+   cmpwi	r10,0
+   bge		eqlize_case2a
+   neg		r10,r10					# make callee > 0
+   cmpwi	r12,0
+   bge		eqlize_case1a			
+   mr		r11,r10					# both caller and callee were -
+   add.		r11,r11,r12
+   bgt		eqlize_case2b
+   beq		eqlize_done
+   neg		r11,r11
+   addi		r11,r11,1				# r11 is number of items to copy
+   neg		r12,r12
+   addi		r3,temp,124
+   rlwinm	r4,r12,2,22,31			# multiply arg number by 4
+   lwzx		r9,r3,r4
+   cmpwi	r9,0
+   bgt		eqlize_Verror
+   clrlwi	r9,r9,1					# clear sign bit
+   andis.	r0,r9,0x2000			# is a list?
+   beq		eqlize_Verror
+   stwx		r9,r3,r4				# update last arg with tailvar
+   b		eqlize_case1
+eqlize_case1a:						# make new tailvar and bind r9 to it
+   addi		r11,r11,1
+   add.		r11,r12,r11				# number of args to copy
+   bgt		eqlize_case1
+   blt		eqlize_Verror
+   addi		r12,r12,1
+   lwz		r3,64(temp)				# get empty list from TCB
+   rlwinm	r4,r12,2,22,31			# multiply by 4
+   addi		r5,temp,124
+   stwx		r3,r5,r4				# put empty list into arity +1 arg
+   b		eqlize_done
+eqlize_Verror:
+   b		Verror1
+eqlize_case1:						# too many args
+   oris		r9,hp,LISTTAG				# make hp a list
+   rlwinm	r3,r10,2,22,31				# multiply by 4
+   addi		r4,temp,124
+   add		r5,r3,r4				# start of args to copy
+   mtspr	CTR,r11
+eqlize_cpy:
+   lwz		r6,0(r5)
+   stw		r6,0(hp)
+   addi		r5,r5,4
+   addi		hp,hp,4
+   bdnz		eqlize_cpy
+   li		r6,0
+   stw		r6,0(hp)				# end seq
+   addi		hp,hp,4
+   stwx		r9,r4,r3				# put list into last arg
+   b		eqlize_done
+eqlize_case2a:						# too few args
+   addi		r11,r11,1
+   add.		r11,r11,r12
+   blt		eqlize_Verror
+   li		r8,1					# r8 - not variadic head
+   b		eqlize_case2
+eqlize_case2b:
+   li		r8,0					# variadic head
+eqlize_case2:
+   mtspr	CTR,r11					# use callee arity for looping
+   neg		r12,r12
+   addi		r3,temp,124
+   rlwinm	r4,r12,2,22,31
+   add		r5,r4,r3				# addr of last arg
+   mr		stp,r5
+   lwz		r9,0(stp)				# last arg (should be a list)
+   andis.	r0,r9,LISTTAG
+   beq		eqlize_Verror
+   clrlwi	r9,r9,1					# clear sign bit
+   andis.	r0,r9,0x2000
+   beq		eqlize_Verror				# not a tailvar
+   cmpwi	r11,0
+   bgt		eqlize_tvar
+   b		eqlize_term
+eqlize_expd:
+   lwz		r9,0(stp)				# get term
+   addi		stp,stp,4
+   cmpwi	r9,0
+   blt		eqlize_cpyt				# if not var,tvar, or end
+   beq		eqlize_tooshort				# premature end
+   andis.	r0,r9,0x2000				# check for tvar
+   beq		eqlize_cpyt
+   addi		stp,stp,-4				# check for unbound tvar
+eqlize_tvar:
+   cmpw		stp,r9
+   beq		eqlize_expd2				# is an unbound tvar
+   mr		stp,r9
+   b		eqlize_expd				# chase tailvar
+eqlize_expd2:						# unbound tvar - must make new heap variables
+   PREPTV(stp,r3)
+   mr		stp,r9
+   stw		hp,0(stp)				# bind the tailvar
+   mr		stp,hp					# construct list of vars
+eqlize_mklp:
+   clrlwi	r6,hp,3					# make a variable
+   stw		r6,0(r5)				# new var on heap and in args
+   addi		r5,r5,4
+   stw		r6,0(hp)
+   addi		hp,hp,4
+   bdnz		eqlize_mklp
+   cmpwi	r8,0					# if not variadic head
+   beq		eqlize_tvterm
+   li		r3,0
+   stw		r3,0(hp)				# terminate sequence with endseq
+   addi		hp,hp,4
+   b		eqlize_done
+eqlize_tvterm:
+   stw		hp,0(hp)				# end with an unbound tvar
+   oris		r6,hp,LISTTAG				# make into a list
+   stw		r6,0(r5)				# place into last arg
+   addi		hp,hp,4
+   b		eqlize_done
+eqlize_toolong:
+eqlize_tooshort:
+   li		r12,0
+   b		eqlize_finish
+eqlize_cpyt:
+   stw		r9,0(r5)				# copy into temp
+   addi		r5,r5,4
+   bdnz		eqlize_expd				# get next term
+   cmpwi	r8,0
+   bgt		eqlize_vrfy
+   oris		r9,stp,LISTTAG				# make listed tvar of stp into last arg
+   stw		r9,0(r5)
+   b		eqlize_done
+eqlize_vrfy:						# this had better be the last item in sequence
+   lwz		r9,0(stp)
+   cmpwi	r9,0
+   beq		eqlize_done
+   blt		eqlize_toolong
+   andis.	r0,r9,0x2000				# check for tvar
+   beq		eqlize_toolong				# was just a var
+eqlize_term:
+   cmpw		stp,r9
+   beq		eqlize_bndend
+   mr		stp,r9					# chase tailvar
+   b		eqlize_vrfy
+eqlize_bndend:
+   li		r9,0					# bind tvar to endseq
+   BINDTV(stp,r9)					# stp no longer valid
+eqlize_done:
+   li		r12,1					# return true
+   LOADARGS
+eqlize_finish:')
+
+define(LONGINTEGER,`
+   LONGINTEGER_PRIM($1,$2,`counter')')
+
+define(LONGINTEGER_PRIM,`
+   andis.	r0,$1,0x4000			# is atm bit set?
+   beq		longint_cmplx.$3
+   andis.	r0,$1,0x2000			# int or symbol?
+   bne		$2				# was a symbol
+   extsh	$1,$1				# short integer, sign extend
+   b		longint_done.$3
+longint_cmplx.$3:
+   andis.	r0,$1,0x2000			# list or struct?
+   bne		$2				# out if was list
+   clrlwi	$1,$1,3				# clear tag bits
+   oris		$1,$1,0x2000			# put in addr bits
+   lhz		r0,0($1)			# get header
+   cmpwi	r0,LONGINT			# struct or long int?
+   bne		$2				# was a structure
+   lhz		r0,2($1)			# float or int?
+   cmpwi	r0,1
+   bne		$2				# was a float
+   lwz		$1,4($1)			# get integer
+longint_done.$3:
+   define(`$3',incr($3))')

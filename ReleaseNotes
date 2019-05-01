@@ -1,0 +1,199 @@
+
+SUBJECT: Release of BNRProlog 5.0.5
+
+PROJECT: 008_CCS
+
+ISSUE DATE: 7th January 1999
+
+ISSUED BY: Chris Savage
+
+DISTRIBUTION LIST:
+Members of list 'ccs-release':
+	urbanski@asiapacificm01.nt.com
+	csavage@asiapacificm01.nt.com
+	webby@nortelnetworks.com
+	winterb@asiapacificm01.nt.com
+	pawson@asiapacificm01.nt.com
+	needham@asiapacificm01.nt.com
+	morton@asiapacificm01.nt.com
+	andzahra@asiapacificm01.nt.com
+	jjwalsh@asiapacificm01.nt.com
+	brleung@asiapacificm01.nt.com
+	mcclymon@asiapacificm01.nt.com
+	charrett@asiapacificm01.nt.com
+	eandre@americasm01.nt.com
+	hchen@americasm01.nt.com
+	violet@americasm01.nt.com
+	mazzucco@americasm01.nt.com
+	woodcock@americasm01.nt.com
+	pgravel@americasm01.nt.com
+	lhaslup@americasm01.nt.com
+	ral@europem01.nt.com
+	gwait@europem01.nt.com
+	rworkman@americasm01.nt.com
+	phamdat@americasm01.nt.com
+
+	23 subscribers
+                        
+RELEASE: BNRProlog 5.0.5
+
+DESCRIPTION:
+	This release of prolog picks up four minor SR's fixed
+	in the latter half of 1998.
+	
+DOCUMENTATION:
+        0568 Prolog Efficiency Hints rev1
+        0701 BNR Prolog Reference Manual, v4.8 Draft
+        0702 External Interface Guide, v1.4
+        0703 Implementation Guide v1.1
+        0704 Constraints v1.0
+        0705 Internal Signal Handling v1.1
+        0839 BNR Prolog User Guide v1.2 Draft
+
+SRS ADDRESSED:
+	60067219 Add a public termination function for the
+		 slee listener. (CAF)
+	60068459 The check for cyclic structures was incorrectly
+		 coded in the HSC. (BEX)
+	60042976 The types used in the call to finite/1 were 
+		 incorrect on AIX. (BNRProlog)
+	60079353 Two branches to .pow in the HSC were not followed
+		 by a "nop" - causing a linker warning in ICCS.
+
+
+SRS OUTSTANDING:
+	60019392, 60021541, 60021595, 60042976, 60046599, 60053007
+
+LOCATION:
+        The release, consisting of source files, libraries, and
+        executable files has been placed in the shared object
+        workspace:
+        
+        ~sniff/sows/rs6000-ibm-aix4.1.5/CSet++/BNRProlog/Releases/BNRP-v5.0.5
+        ~sniff/sows/rs6000-ibm-aix4.2.1/CSet++/BNRProlog/Releases/BNRP-v5.0.5
+        ~sniff/sows/pa_risc-hp-hpux10.20/SB_CC/BNRProlog/Releases/BNRP-v5.0.5
+        ~sniff/sows/pa_risc-hp-hpux10.0/SB_CC/BNRProlog/Releases/BNRP-v5.0.5
+
+        Currently v4.4.9 is also available through ntcad.  This version of
+        BNRP will replace v4.4.9.
+
+        BNRP v5.0.5 for Solaris will be available soon on the BNRProlog WWW 
+        page which is at: http://wolwww/~wcorebld/CCS/bnrp.html
+
+
+CONTENTS:
+  BNRP-v5.0.5
+    |
+    --> CHANGELOG details the changes to BNR Prolog since the last release.
+    |
+    --> bin --> BNRProlog
+    |       --> xBNRProlog
+    |       --> base
+    |       --> base.a
+    |
+    --> include --> BNRPbase.h
+    |           --> BNRProlog.h
+    |           --> slee_listener.h
+    |           --> wollongong.h
+    |           --> xwollongong.h
+    |
+    --> lib --> libBNRPbase.a
+    |       --> libBNRProlog.a
+    |       --> libslee_listener.a
+    |       --> libxBNRProlog.a
+    --> utilities --> check.[p,a]
+    |             --> compile.[p,a]
+    |             --> dcg.[p,a]
+    |             --> debugger.[p,a]
+    |             --> debugger_CAF.[p,a]
+    |             --> edinburgh.[p,a]
+    |             --> networkTasking.[p,a]
+    |             --> pFormat.[p,a]
+    |             --> profiler.[p,a]
+    |             --> project.[p,a]
+    |             --> reserved.[p,a]
+    |             --> slee_listener.[p,a]
+                  --> Panels_3.1 --> panel_trace.p
+                  |              --> panels.a
+                  |              --> panel_files --> Example_1.[p,a]
+                                 |               --> Example_2.[p,a]
+                                 |               --> Example_3.[p,a]
+                                 |               --> Example_4.[p,a]
+                                 |               --> Try_Me.[p,a]
+
+ 
+CONFIGURATION:
+Compiler Versions:
+        AIX (xlc_r):    3.1.4.7
+        HPUX (cc):      vA.10.28
+        Solaris (gcc):  2.7.2
+        BNR Prolog:     v5.0.4
+        
+Build Tools:
+        gmake:          v3.74 (HPUX)
+                        v3.74 (AIX)
+                        v3.74 (Solaris)
+        SNiFF:          v2.4
+        
+Operating Systems:
+        AIX:            v4.1.5R2
+        AIX:            v4.2.1
+        HPUX:           v10.10 (10.0)
+        HPUX:           v10.20
+        Solaris:        v2.5.1
+        
+Build Machine and Compilation Options:
+        HPUX10.20:      wwolh002 compilation option: -O  (Primary Build machine)
+        HPUX10.10       bwolh011 compilation option: -O  
+        AIX4.1.5:       bwoly034 compilation option: -O2 
+        AIX4.2.1:       bwoli005 compilation option: -O2 
+        
+        Solaris:        bwols001 compilation option: -O2 - to be completed
+        
+Third Party Libraries:
+        GMS:            1.0.9
+        Motif:          1.2
+        X11R5
+
+Shared Libraries:
+   HPUX
+        /usr/lib/libc.1:
+                PATCH/10.20:PHCO_12448 libc.1_ID@@/main/r10dav/libc_dav/libc_dav_cpe/7
+                /ux/core/libs/libc/shared_pa1/libc.1_ID
+                Sep  8 1997 17:09:20
+        /usr/lib/libM.1:
+                HP-UX libm shared PA1.0 C math library 960420 (111936)   UX 10.20
+        /usr/lib/Motif1.2/libXm.1:
+                OSF/Motif Version 1.2.6
+                X Window System, Version 11 R5+ HP-UX B.10.10.00 Sept 1997 Patch Release
+                (build date: Fri Sep  5 09:29:41 PDT 1997)
+        /usr/lib/X11R5/libXt.1:
+                X Window System, Version 11 R5+ HP-UX B.10.10.00 Sept 1997 Patch Release
+                (build date: Wed Sep  3 14:47:38 PDT 1997)
+        /usr/lib/X11R5/libX11.1:
+                X Window System, Version 11 R5+ HP-UX B.10.10.00 May 1997 Patch Release
+                (build date: Wed Jun 11 15:06:11 PDT 1997)
+
+    AIX4.1.5
+        libc.a    bos.rte.libc  4.1.5.0
+        libXt.a   X11.base.lib  4.1.5.0
+        libX11.a  X11.base.lib  4.1.5.0
+        libXm.a   X11.motif.lib 4.1.5.0
+
+    AIX4.2.1
+        libc.a    bos.rte.libc  4.2.1.0
+        libXt.a   X11.base.lib  4.2.1.0
+        libX11.a  X11.base.lib  4.2.1.0
+        libXm.a   X11.motif.lib 4.2.1.0
+
+    Solaris
+        libc.a    5.5.1
+        libXt.a   5.5.1
+        libX11.a  5.5.1
+        libXm.so  1.2.3
+
+BUILD DATE: 7th January 1999
+
+VERIFICATION:
+	Implementation of regression test suite in progress
+	Existing test suite completed successfully on hpux10.20 version

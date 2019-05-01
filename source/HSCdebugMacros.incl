@@ -1,0 +1,452 @@
+#
+#  $Header: /disc9/sniff/repository/BNRProlog/source/RCS/HSCdebugMacros.incl,v 1.2 1998/05/26 12:18:01 csavage Exp $
+#
+#  $Log: HSCdebugMacros.incl,v $
+# Revision 1.2  1998/05/26  12:18:01  csavage
+# changed order to separate out arith.
+#
+# Revision 1.1  1997/12/22  17:01:17  harrisj
+# Added support for HSC and to build HSC and non-HSC BNRP
+#
+#
+#
+
+define(`DEBUG_RENAMES',`.rename ar{TC},"ar"
+	.rename arTOS{TC},"arTOS"
+	.rename criticalenv{TC},"criticalenv"
+	.rename criticalhp{TC},"criticalhp"')
+
+define(`DEBUG_EXTERNS',`.extern .fixArities{PR}
+	.extern	.BNRP_RESUME2{PR}
+	.extern ar{UA}
+	.extern arTOS{UA}
+	.extern criticalenv{UA}
+	.extern criticalhp{UA}')
+
+define(`DEBUG_TOCS',`arTC:
+   .tc ar{TC},ar{UA}
+arTOSTC:
+   .tc arTOS{TC},arTOS{UA}
+criticalenvTC:
+   .tc criticalenv{TC},criticalenv{UA}
+criticalhpTC:
+   .tc criticalhp{TC},criticalhp{UA}')
+
+
+define(`DEBUG_ARITH',`
+   lwz		r11,arTC(RTOC)			# load ar address
+   addi		r11,r11,-1			# subtract 1 from ar
+   lwz		r10,arTOSTC(RTOC)		# load arTOS address
+   stw		r11,0(r10)			# save ar -1 in arTOS')
+
+#define(`FIX_ARITIES',`
+#   SAVEREGS_DEBUG
+#   mr		r3,temp
+#   addi		r4,temp,124
+#   addi		r5,ppc,-3
+#   bl		.fixArities{PR}
+#   nop
+#   LOADREGS_DEBUG
+#   mr		r12,r3')
+
+#Macro used to call the C interpreter
+define(`CALLING_BNRP',`
+   SAVEREGS_DEBUG
+   mr		r3,temp
+   bl		.BNRP_RESUME2{PR}
+   nop
+   LOADREGS_DEBUG
+#   RESTORE_STACK2
+   cmpwi	r3,0
+   beq		GetTable
+   blt		Fail
+   bgt		Exit')
+
+# restores the stack when appropriate
+define(RESTORE_STACK2,`
+   lbz		r4,69(temp)		# get mode
+   cmpwi	r4,0x01			# only do this if not in head modes
+   ble		restore_stack2_done
+   stw		sp,56(temp)		# start of pdl
+   addi		r4,sp,400		# calculate end of pdl
+   stw		r4,60(temp)		# end of pdl
+restore_stack2_done:')
+
+define(LOADREGS_DEBUG, `	# START LOADREGS MACRO  
+   lwz		te,72(temp)
+   lwz		lcp,76(temp)
+   lwz		hp,88(temp)
+   lwz		ppc,92(temp)
+   lwz		ce,96(temp)
+   lwz		cp,100(temp)
+   lwz		stp,104(temp)
+   lwz		arg1,128(temp)
+   lwz		arg2,132(temp)
+   lwz		arg3,136(temp)
+   lwz		arg4,140(temp)
+   lwz		arg5,144(temp)
+   lwz		arg6,148(temp)
+   lwz		arg7,152(temp)
+   lwz		r12,criticalenvTC(RTOC)
+   lwz		be,0(r12)
+   lwz		r12,criticalhpTC(RTOC)
+   lwz		bh,0(r12)')
+
+# usage is SAVEREGS_DEBUG
+define(SAVEREGS_DEBUG, `
+   stw		te,72(temp)
+   stw		lcp,76(temp)
+   stw		hp,88(temp)
+   stw		ppc,92(temp)
+   stw		ce,96(temp)
+   stw		cp,100(temp)
+   stw		stp,104(temp)
+   stw		arg1,128(temp)
+   stw		arg2,132(temp)
+   stw		arg3,136(temp)
+   stw		arg4,140(temp)
+   stw		arg5,144(temp)
+   stw		arg6,148(temp)
+   stw		arg7,152(temp)
+   lwz		r12,criticalenvTC(RTOC)
+   stw		be,0(r12)
+   lwz		r12,criticalhpTC(RTOC)
+   stw		bh,0(r12)')
+
+#Macros to update the tcb->ppsw values during table changes (ie. head -> body)
+
+define(`HEAD_CHANGE',`
+   li		r3,0			# load head value
+   stb		r3,69(temp)		# store value into ppsw')
+
+define(`HEAD_WRITE_CHANGE',`
+   li		r3,0x01			# load head write value
+   stb		r3,69(temp)		# store value into ppsw')
+
+define(`BODY_CHANGE',`
+   li		r3,0x80			# load body value
+   stb		r3,69(temp)		# store value into ppsw')
+
+define(`BODY_ESCAPE_CHANGE',`
+   li		r3,0x90			# load body escape value
+   stb		r3,69(temp)		# store value into ppsw')
+
+define(`BODY_ESCCL_CHANGE',`
+   li		r3,0x90			# load body escape value
+   stb		r3,69(temp)		# store value into ppsw')
+
+
+###################
+# OPCODE OVERIDES #
+###################
+# Head read
+
+#define(`NECK',`b		CallingBNRP')
+#define(`RUNIFY_VOID',`b		CallingBNRP')
+#define(`REND_SEQ',`b		CallingBNRP')
+#define(`RUNIFY_CONS',`b		CallingBNRP')
+#define(`NECKCON',`b		CallingBNRP')		# requires NECKUTILS
+#define(`RUNIFY_NIL',`b		CallingBNRP')
+#define(`GET_CONS',`b		CallingBNRP')
+#define(`GET_CONS_TCB',`b		CallingBNRP')
+#define(`GET_STRUCT',`b		CallingBNRP')
+#define(`GET_STRUCT_TCB',`b		CallingBNRP')
+#define(`GET_LIST',`b		CallingBNRP')
+#define(`GET_LIST_TCB',`b		CallingBNRP')
+#define(`GET_NIL',`b		CallingBNRP')
+#define(`GET_NIL_TCB',`b		CallingBNRP')
+#define(`GET_VALT',`b		CallingBNRP')
+#define(`GET_VALT_TCB',`b		CallingBNRP')
+#define(`GET_VALP',`b		CallingBNRP')
+#define(`GET_VALP_TCB',`b		CallingBNRP')
+#define(`RUNIFY_VART',`b		CallingBNRP')
+#define(`RUNIFY_VART_TCB',`b		CallingBNRP')
+#define(`RUNIFY_VARP',`b		CallingBNRP')
+#define(`RUNIFY_VARP_TCB',`b		CallingBNRP')
+#define(`RUNIFY_VALT',`b		CallingBNRP')
+#define(`RUNIFY_VALT_TCB',`b		CallingBNRP')
+#define(`RUNIFY_VALP',`b		CallingBNRP')
+#define(`RUNIFY_VALP_TCB',`b		CallingBNRP')
+#define(`RTUNIFY_VART',`b		CallingBNRP')
+#define(`RTUNIFY_VART_TCB',`b		CallingBNRP')
+#define(`RTUNIFY_VARP',`b		CallingBNRP')
+#define(`RTUNIFY_VARP_TCB',`b		CallingBNRP')
+#define(`RTUNIFY_VALT',`b		CallingBNRP')
+#define(`RTUNIFY_VALT_TCB',`b		CallingBNRP')
+#define(`RTUNIFY_VALP',`b		CallingBNRP')
+#define(`RTUNIFY_VALP_TCB',`b		CallingBNRP')
+#define(`UNIFY_ADDRESS',`b		CallingBNRP')
+#define(`GET_CONS_BY_VALUE',`b	CallingBNRP')
+#define(`RUNIF_CONS_BY_VALUE',`b		CallingBNRP')
+#define(`COPY_VALP',`b		CallingBNRP')
+#define(`GET_VART', `b		CallingBNRP')
+#define(`GET_VART_ARG1', `b		CallingBNRP')
+#define(`GET_VART_ARG2', `b		CallingBNRP')
+#define(`GET_VART_TCB', `b		CallingBNRP')
+#define(`GET_VARP', `b		CallingBNRP')
+#define(`GET_VARP_ARG1', `b		CallingBNRP')
+#define(`GET_VARP_ARG2', `b		CallingBNRP')
+#define(`GET_VARP_TCB', `b		CallingBNRP')
+
+# Head write
+
+#define(`WEND_SEQ',`b		CallingBNRP')
+#define(`WUNIFY_NIL',`b		CallingBNRP')
+#define(`WUNIFY_VALP_TCB',`b		CallingBNRP')		# requires PUSH_VALP
+#define(`WUNIFY_CONS_BY_VALUE',`b		CallingBNRP')
+#define(`WTUNIFY_VALP',`b		CallingBNRP')			# requires TPUSH_VALP
+#define(`WTUNIFY_VALP_TCB',`b		CallingBNRP')		# requires TPUSH_VALP_TCB
+#define(`WTUNIFY_VALT',`b		CallingBNRP')
+#define(`WTUNIFY_VALT_TCB',`b		CallingBNRP')
+#define(`WTUNIFY_VART',`b		CallingBNRP') 			# requires TPUSH_VART
+#define(`WTUNIFY_VART_TCB',`b		CallingBNRP')		# requires TPUSH_VART_TCB
+#define(`WTUNIFY_VARP',`b		CallingBNRP')			# requires TPUSH_VARP
+#define(`WTUNIFY_VARP_TCB',`b		CallingBNRP')		# requires TPUSH_VARP 
+#define(`WUNIFY_VARP_TCB',`b		CallingBNRP')			# requires PUSH_VARP
+   
+# Body
+
+#define(`PROCEED',`b		CallingBNRP')
+#define(`PUSH_VOID',`b		CallingBNRP')
+#define(`TPUSH_VOID',`b		CallingBNRP')
+#define(`PUSH_END',`b		CallingBNRP')
+#define(`PUSH_CONS',`b		CallingBNRP')
+#define(`DEALLOC',`b		CallingBNRP')
+#define(`ESCAPE',`b		CallingBNRP')				# requires DEBUG_ARITH
+#define(`PUT_CONS',`b		CallingBNRP')
+#define(`PUT_CONS_TCB',`b		CallingBNRP')
+#define(`PUT_STRUCT',`b		CallingBNRP')
+#define(`PUT_STRUCT_TCB',`b		CallingBNRP')
+#define(`PUT_LIST',`b		CallingBNRP')
+#define(`PUT_LIST_TCB',`b		CallingBNRP')
+#define(`PUT_NIL',`b		CallingBNRP')
+#define(`PUT_NIL_TCB',`b		CallingBNRP')
+#define(`PUT_VOID',`b		CallingBNRP')
+#define(`PUT_VOID_TCB',`b		CallingBNRP')
+#define(`PUT_VARP',`b		CallingBNRP')
+#define(`PUT_VARP_TCB',`b		CallingBNRP')
+#define(`PUSH_VART',`b		CallingBNRP')
+#define(`PUSH_VART_TCB',`b		CallingBNRP')
+#define(`PUSH_VARP',`b		CallingBNRP')
+#define(`PUSH_VARP_TCB',`b		CallingBNRP')
+#define(`PUSH_VALT',`b		CallingBNRP')
+#define(`PUSH_VALT_TCB',`b		CallingBNRP')
+#define(`PUSH_VALP',`b		CallingBNRP')
+#define(`PUSH_VALP_TCB',`b		CallingBNRP')
+#define(`TPUSH_VART',`b		CallingBNRP')
+#define(`TPUSH_VART_TCB',`b		CallingBNRP')
+#define(`TPUSH_VARP',`b		CallingBNRP')
+#define(`TPUSH_VARP_TCB',`b		CallingBNRP')
+#define(`TPUSH_VALT',`b		CallingBNRP')
+#define(`TPUSH_VALT_TCB',`b		CallingBNRP')
+#define(`TPUSH_VALP',`b		CallingBNRP')
+#define(`TPUSH_VALP_TCB',`b		CallingBNRP')
+#define(`PUT_VALT',`b		CallingBNRP')
+#define(`PUT_VALT_ARG1',`b		CallingBNRP')
+#define(`PUT_VALT_ARG2',`b		CallingBNRP')
+#define(`PUT_VALT_TCB',`b		CallingBNRP')
+#define(`PUT_VALP',`b		CallingBNRP')
+#define(`PUT_VALP_ARG1',`b		CallingBNRP')
+#define(`PUT_VALP_ARG2',`b		CallingBNRP')
+#define(`PUT_VALP_TCB',`b		CallingBNRP')
+
+# Body Escape
+
+#define(`BREAK',`b		CallingBNRP')
+#define(`ECUT',`b		CallingBNRP')
+#define(`DCUT',`b		CallingBNRP')
+#define(`PUSH_NIL',`b		CallingBNRP')
+#define(`CALLINDIRECT',`b		CallingBNRP')
+#define(`CALL',`b		CallingBNRP')
+#define(`EXECINDIRECT',`b		CallingBNRP')
+#define(`EXEC',`b		CallingBNRP')
+#define(`CALL_CLAUSE',`b		CallingBNRP')
+#define(`EXEC_ADDR',`b		CallingBNRP')
+#define(`FAIL',`b		CallingBNRP')
+#define(`VART',`b		CallingBNRP')
+#define(`VART_TCB',`b		CallingBNRP')
+#define(`VARP',`b		CallingBNRP')
+#define(`VARP_TCB',`b		CallingBNRP')
+#define(`TVART',`b		CallingBNRP')
+#define(`TVART_TCB',`b		CallingBNRP')
+#define(`TVARP',`b		CallingBNRP')
+#define(`TVARP_TCB',`b		CallingBNRP')
+#define(`MORE_CHPTS',`b		CallingBNRP')
+#define(`CCUT',`b		CallingBNRP')
+#define(`CDCUT',`b		CallingBNRP')
+#define(`CCUTFAIL',`b		CallingBNRP')
+#define(`CDCUTFAIL',`b		CallingBNRP')
+#define(`NAMED_CUT',`b		CallingBNRP')
+#define(`FAILEXIT',`b		CallingBNRP')
+#define(`LABEL_ENV',`b		CallingBNRP')
+#define(`TESTT',`b		CallingBNRP')
+#define(`TESTT_TCB',`b		CallingBNRP')
+#define(`TESTP',`b		CallingBNRP')
+#define(`TESTP_TCB',`b		CallingBNRP')
+#define(`DCUT_EXEC',`b		CallingBNRP')
+#define(`PUT_VART',`b		CallingBNRP')
+#define(`PUT_VART_ARG1',`b		CallingBNRP')
+#define(`PUT_VART_TCB',`b		CallingBNRP')
+#define(`CCUTSP',`b		CallingBNRP')
+
+# Arithmetic requires ESCAPE opcode
+
+#define(`EVAL_CONS',`b		CallingBNRP')
+#define(`POP_VALT',`b		CallingBNRP')
+#define(`POP_VALT_TCB',`b		CallingBNRP')
+#define(`POP_VALP',`b		CallingBNRP')
+#define(`POP_VALP_TCB',`b		CallingBNRP')
+#define(`EVALT',`b		CallingBNRP')
+#define(`EVALT_TCB',`b		CallingBNRP')
+#define(`EVALP',`b		CallingBNRP')
+#define(`EVALP_TCB',`b		CallingBNRP')
+#define(`POP_VART',`b		CallingBNRP')
+#define(`POP_VART_TCB',`b		CallingBNRP')
+#define(`POP_VARP',`b		CallingBNRP')
+#define(`POP_VARP_TCB',`b		CallingBNRP')
+#define(`ADD',`b		CallingBNRP')
+#define(`SUBTRACT',`b		CallingBNRP')
+#define(`MULTIPLY',`b		CallingBNRP')
+#define(`INT_DIVIDE',`b		CallingBNRP')		# requires INT
+#define(`DIVIDE',`b		CallingBNRP')
+#define(`MOD',`b		CallingBNRP')
+#define(`POWER',`b		CallingBNRP')
+#define(`INT',`b		CallingBNRP')
+#define(`FLOATING',`b		CallingBNRP')
+#define(`FLOOR',`b		CallingBNRP')
+#define(`CEILING',`b		CallingBNRP')
+#define(`ROUND',`b		CallingBNRP')
+#define(`MAX',`b		CallingBNRP')
+#define(`MIN',`b		CallingBNRP')
+#define(`SQRT',`b		CallingBNRP')
+#define(`ABS',`b		CallingBNRP')
+#define(`EXP',`b		CallingBNRP')
+#define(`LOG',`b		CallingBNRP')
+#define(`INCREMENT',`b		CallingBNRP')
+#define(`DECREMENT',`b		CallingBNRP')
+#define(`NEGATE',`b		CallingBNRP')
+#define(`SIN',`b		CallingBNRP')
+#define(`COS',`b		CallingBNRP')
+#define(`TAN',`b		CallingBNRP')
+#define(`ASIN',`b		CallingBNRP')
+#define(`ACOS',`b		CallingBNRP')
+#define(`ATAN',`b		CallingBNRP')
+#define(`BIN_BUTNOT',`b		CallingBNRP')
+#define(`EQUAL',`b		CallingBNRP')
+#define(`EQUAL_LESS',`b		CallingBNRP')
+#define(`EQUAL_GREATER',`b		CallingBNRP')
+#define(`LESS_THAN',`b		CallingBNRP')
+#define(`GREATER_THAN',`b		CallingBNRP')
+#define(`NOT_EQUAL',`b		CallingBNRP')
+#define(`BIN_BITSHIFT',`b		CallingBNRP')
+#define(`MAXINT',`b		CallingBNRP')
+#define(`MAXFLOAT',`b		CallingBNRP')
+#define(`PI',`b		CallingBNRP')
+#define(`CPUTIME',`b		CallingBNRP')
+#define(`BIN_BITAND',`b		CallingBNRP')
+#define(`BIN_BITOR',`b		CallingBNRP')
+#define(`BIN_BITEQ',`b		CallingBNRP')
+#define(`UNARY_NOT',`b		CallingBNRP')
+#define(`BINARY_AND',`b		CallingBNRP')
+#define(`BINARY_OR',`b		CallingBNRP')
+#define(`BINARY_XOR',`b		CallingBNRP')
+#define(`BINARY_COMPARE',`b		CallingBNRP')
+#define(`REL_EQUAL',`b		CallingBNRP')
+#define(`REL_GREATER',`b		CallingBNRP')
+#define(`REL_LESS',`b		CallingBNRP')
+
+
+# Body Escape Clause
+
+#define(`CL_ECUT',`b		CallingBNRP')
+#define(`CL_DCUT',`b		CallingBNRP')
+#define(`CL_EVAL_CONS',`b		CallingBNRP')
+#define(`CL_CALLINDIRECT',`b		CallingBNRP')
+#define(`CL_CALL',`b		CallingBNRP')
+#define(`CL_EXECINDIRECT',`b		CallingBNRP')
+#define(`CL_EXEC',`b		CallingBNRP')
+#define(`CL_CLAUSE',`b		CallingBNRP')
+#define(`CL_EXECADDR',`b		CallingBNRP')
+#define(`CL_FAIL',`b		CallingBNRP')
+#define(`CL_VART',`b		CallingBNRP')
+#define(`CL_VART_TCB',`b		CallingBNRP')
+#define(`CL_VARP',`b		CallingBNRP')
+#define(`CL_VARP_TCB',`b		CallingBNRP')
+#define(`CL_TVART',`b		CallingBNRP')
+#define(`CL_TVART_TCB',`b		CallingBNRP')
+#define(`CL_TVARP',`b		CallingBNRP')
+#define(`CL_TVARP_TCB',`b		CallingBNRP')
+#define(`CL_CCUT',`b		CallingBNRP')
+#define(`CL_CDCUT',`b		CallingBNRP')
+#define(`CL_CCUTFAIL',`b		CallingBNRP')
+#define(`CL_CDCUTFAIL',`b		CallingBNRP')
+#define(`CL_CUT',`b		CallingBNRP')
+#define(`CL_FAILEXIT',`b		CallingBNRP')
+#define(`CL_TESTT',`b		CallingBNRP')
+#define(`CL_TESTT_TCB',`b		CallingBNRP')
+#define(`CL_TESTP',`b		CallingBNRP')
+#define(`CL_TESTP_TCB',`b		CallingBNRP')
+#define(`CL_POP_VALT',`b		CallingBNRP')
+#define(`CL_POP_VALT_TCB',`b		CallingBNRP')
+#define(`CL_POP_VALP',`b		CallingBNRP')
+#define(`CL_POP_VALP_TCB',`b		CallingBNRP')
+#define(`CL_EVALT',`b		CallingBNRP')
+#define(`CL_EVALT_TCB',`b		CallingBNRP')
+#define(`CL_EVALP',`b		CallingBNRP')
+#define(`CL_EVALP_TCB',`b		CallingBNRP')
+#define(`CL_POP_VART',`b		CallingBNRP')
+#define(`CL_POP_VART_TCB',`b		CallingBNRP')
+#define(`CL_POP_VARP',`b		CallingBNRP')
+#define(`CL_POP_VARP_TCB',`b		CallingBNRP')
+#define(`CL_CCUTSP',`b		CallingBNRP')
+#define(`CL_ADD',`b		CallingBNRP')
+#define(`CL_SUBTRACT',`b		CallingBNRP')
+#define(`CL_MULTIPLY',`b		CallingBNRP')
+#define(`CL_INT_DIVIDE',`b		CallingBNRP')
+#define(`CL_DIVIDE',`b		CallingBNRP')
+#define(`CL_MOD',`b		CallingBNRP')
+#define(`CL_POWER',`b		CallingBNRP')
+#define(`CL_INT',`b		CallingBNRP')
+#define(`CL_FLOATING',`b		CallingBNRP')
+#define(`CL_FLOOR',`b		CallingBNRP')
+#define(`CL_CEILING',`b		CallingBNRP')
+#define(`CL_ROUND',`b		CallingBNRP')
+#define(`CL_MAX',`b		CallingBNRP')
+#define(`CL_MIN',`b		CallingBNRP')
+#define(`CL_SQRT',`b		CallingBNRP')
+#define(`CL_ABS',`b		CallingBNRP')
+#define(`CL_EXP',`b		CallingBNRP')
+#define(`CL_LOG',`b		CallingBNRP')
+#define(`CL_INCREMENT',`b		CallingBNRP')
+#define(`CL_DECREMENT',`b		CallingBNRP')
+#define(`CL_NEGATE',`b		CallingBNRP')
+#define(`CL_SIN',`b		CallingBNRP')
+#define(`CL_COS',`b		CallingBNRP')
+#define(`CL_TAN',`b		CallingBNRP')
+#define(`CL_ASIN',`b		CallingBNRP')
+#define(`CL_ACOS',`b		CallingBNRP')
+#define(`CL_ATAN',`b		CallingBNRP')
+#define(`CL_BIN_BUTNOT',`b		CallingBNRP')
+#define(`CL_EQUAL',`b		CallingBNRP')
+#define(`CL_EQUAL_LESS',`b		CallingBNRP')
+#define(`CL_EQUAL_GREATER',`b		CallingBNRP')
+#define(`CL_LESS_THAN',`b		CallingBNRP')
+#define(`CL_GREATER_THAN',`b		CallingBNRP')
+#define(`CL_NOT_EQUAL',`b		CallingBNRP')
+#define(`CL_BIN_BITSHIFT',`b		CallingBNRP')
+#define(`CL_DCUT_EXEC',`b		CallingBNRP')
+#define(`CL_MAXINT',`b		CallingBNRP')
+#define(`CL_MAXFLOAT',`b		CallingBNRP')
+#define(`CL_PI',`b		CallingBNRP')
+#define(`CL_CPUTIME',`b		CallingBNRP')
+#define(`CL_BIN_BITAND',`b		CallingBNRP')
+#define(`CL_BIN_BITOR',`b		CallingBNRP')
+#define(`CL_BIN_BITEQ',`b		CallingBNRP')
+#define(`CL_UNARY_NOT',`b		CallingBNRP')
+#define(`CL_BINARY_AND',`b		CallingBNRP')
+#define(`CL_BINARY_OR',`b		CallingBNRP')
+#define(`CL_BINARY_XOR',`b		CallingBNRP')
+#define(`CL_BINARY_COMPARE',`b		CallingBNRP')
+#define(`CL_REL_EQUAL',`b		CallingBNRP')
+#define(`CL_REL_GREATER',`b		CallingBNRP')
+#define(`CL_REL_LESS',`b		CallingBNRP')

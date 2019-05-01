@@ -1,0 +1,49 @@
+
+{0 {1 0 OrdStringColl 3.1 } 20 0 } 
+0
+0
+0
+0
+1
+540 0 
+463 144 
+390 0 
+260 0 
+292 42 
+700 450 
+1
+0
+1
+5 "HEAD\x00"
+8 "V4_3_4c\x00"
+
+{2 @1 20 8 17 "BNRProlog.shared\x00"
+18 "build_base.shared\x00"
+19 "base_source.shared\x00"
+17 "utilities.shared\x00"
+18 "Panels_3.1.shared\x00"
+19 "panel_files.shared\x00"
+14 "source.shared\x00"
+15 "xsource.shared\x00"
+} 
+1
+0
+1
+79 154 
+72 100 
+292 42 
+787 520 
+1
+0
+
+{3 @1 20 2 17 "BNRProlog.shared\x00"
+18 "Panels_3.1.shared\x00"
+} 
+
+{4 {5 0 Set 3.1 } 2 0  0 
+} 
+1
+0
+0
+0
+0

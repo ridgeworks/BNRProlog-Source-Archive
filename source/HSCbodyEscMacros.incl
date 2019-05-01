@@ -1,0 +1,2971 @@
+#
+#  $Header: /disc9/sniff/repository/BNRProlog/source/RCS/HSCbodyEscMacros.incl,v 1.6 1999/01/06 23:57:36 csavage Exp $
+#
+#  $Log: HSCbodyEscMacros.incl,v $
+# Revision 1.6  1999/01/06  23:57:36  csavage
+# Added "nop"'s after "bl .pow"'s
+#
+# Revision 1.5  1998/06/05  06:06:27  csavage
+# Was loading word for ppc instead of byte.  Also
+# involved a mis-alignment during unification.  Checked
+# in under 60058438
+#
+# Revision 1.4  1998/03/19  12:33:39  csavage
+# fix of HSC bug in 5.0.2 release
+#
+# Revision 1.3  1998/03/13  10:53:46  harrisj
+# Redo of arithmetic eval opcodes in clause mode was changing the
+# table to Clause mode permanently to perform the opcode in clause
+# mode when it should have been a temporary thing
+#
+# Revision 1.2  1998/03/10  07:10:58  harrisj
+# VARP_TCB and TVARP_TCB var/tvar filter opcodes had a typo which caused
+# incorrect register to be processed
+#
+# Revision 1.1  1997/12/22  17:01:12  harrisj
+# Added support for HSC and to build HSC and non-HSC BNRP
+#
+#
+#
+
+#
+#
+#              'interrupt' handler for constraints, timeouts, attention  (NOT DEBUG)
+#               with    r10=arity, r11 =princ. functor
+#       enter only during calls/execs
+#                       saves current goal for later
+#                       interpolates appropriate call into goal stream
+define(INTERRUPTS,`
+Handler:
+   QSUSPEND					# save current goal on heap, result in r12
+   lwz		r3,BNRPflagsTC(RTOC)		# test for non-debug
+   lwz		r4,0(r3)			# get BNRPflags value
+   andi.	r0,r4,0x0001			# check attention bit
+   bne		Attn
+   andi.	r0,r4,0x0002			# check constraint bit
+   beq		Tick
+   clrrwi	r4,r4,2				# clear bottom two bits
+   stw		r4,0(r3)			# store new BNRPflags value
+   QAPPEND(r8,r12,hp)				# add r12 to end of active constraint list
+Firecnst:					# entered from calls, execs, & neckcons
+   lwz		r12,112(temp)			# pick up head of list (is a tailvar!!)
+   cmpwi	r12,0
+   beq		MiscError			# should never be empty
+   li		r3,0
+   stw		r3,112(temp)			# empty queue
+   clrlwi	r12,r12,2			# clear all bits but addr bit
+   lwz		r3,4(r12)			# check to see if one element list
+   cmpwi	r3,0
+   bne		ContinuList
+   lwz		r12,0(r12)			# get only item of list
+   andis.	r0,r12,0x2000			# is list bit set?
+   bne		Continu
+   b		ExecIndirect
+ContinuList:
+   oris		r12,r12,LISTTAG			# tag as a list
+Continu:					# resume execution of indirect and update flags
+   lwz		r11,indirectAtomTC(RTOC)	# get indirectAtom
+   lwz		r11,0(r11)
+   li		r10,1
+   mr		arg1,r12
+   b		Ecall2
+Attn:
+   clrrwi	r4,r4,1				# clear attention bit
+   stw		r4,0(r3)			# store new BNRPflags value
+   oris		r10,hp,LISTTAG			# make a list
+   lwz		r4,attentionAtomTC(RTOC)	# load attention atom
+   lwz		r4,0(r4)
+   stw		r4,0(hp)
+   b		FinishList
+Tick:
+   andi.	r0,r4,0x0004			# make sure is set
+   beq		Continu
+   clrrwi	r4,r4,3				# clear tick bit
+   stw		r4,0(r3)			# store new BNRPflags value
+   oris		r10,hp,LISTTAG			# make a list
+   lwz		r4,tickAtomTC(RTOC)		# load tick atom
+   lwz		r4,0(r4)
+   stw		r4,0(hp)
+FinishList:
+   stw		r12,4(hp)			# original goal
+   li		r3,0
+   stw		r3,8(hp)			# end seq
+   addi		hp,hp,12
+   mr		arg1,r10
+   lwz		r11,indirectAtomTC(RTOC)	# metacall original call
+   lwz		r11,0(r11)
+   li		r10,1					# arg r12 is intercepted goal
+   b		Ecall2   
+Trace:
+   QSUSPEND
+   mr		arg1,r12				# put goal into arg1
+   lwz		r11,tracerAtomTC(RTOC)	# get tracer atom
+   lwz		r11,0(r11)
+   li		r10,1					# 1 argument
+   b		Ecall2
+					
+Interrupt:
+   lwz		r3,120(temp)			# ignore interrupts in state space cells
+   lwz		r4,ssAtomTC(RTOC)
+   lwz		r4,0(r4)
+   cmpw		r3,r4
+   beq		Ecall2
+   lwz		r3,BNRPflagsTC(RTOC)		# test for non-debug
+   lwz		r3,0(r3)			# get BNRPflags value
+   andis.	r0,r3,0x0001
+   beq		Handler
+   stw		r11,120(temp)			# save symbol for debugging, cut
+   clrlwi	r11,r11,3			# clear top 3 bits
+   oris		r11,r11,0x2000			# put in address bits
+   lhz		r3,DBUGFLAGS(r11)		# is it a spy point?
+   cmpwi	r3,0
+   beq		fstcls				# no, resume execution
+   lwz		r11,120(temp)			# restore pfunc
+   b		Trace				# debug trace - suspend current goal and invoke tracer')
+
+
+####################################################
+#		Call
+####################################################
+
+define(CALLSUPPORT,`
+Unkn:
+   lwz		r3,BNRPflagsTC(RTOC)
+   lhz		r3,0(r3)			# is the debugger on? (top word only)
+   cmpwi	r3,0
+   beq		Fail
+   lwz		r11,120(temp)
+   lwz		r3,tracerAtomTC(RTOC)
+   lwz		r3,0(r3)
+   cmpw		r3,r11
+   beq		Fail
+   b		Trace				# suspend current goal and invoke tracer
+
+Prim:
+   beq		Unkn				# no clauses and not a primitive
+   SAVEARGS
+   stw		r10,124(temp)			# save args and arity of call
+   cmpwi	r10,0
+   bge		Callc
+   neg		r10,r10				# negative arity - unwind tailvar
+   rlwinm	r3,r10,2,22,31
+   addi		r4,temp,120
+   add		r4,r4,r3			# addr of tailvar
+   lwz		r12,4(r4)			# get final tailvar
+   cmpwi	r12,0
+   bge		Verror1				# not a tailvar
+   clrlwi	r12,r12,3			# clear top three bits
+   oris		stp,r12,0x2000			# put in address bit
+   addi		r10,r10,-1			# remove tailvar arg
+prim_loop:
+   GETNEXT(r12,prim_done,prim_unbdtv)
+   stwu		r12,4(r4)
+   addi		r10,r10,1			# increment arg count
+   b		prim_loop
+prim_unbdtv:
+   stwu		stp,4(r4)
+   addi		r10,r10,1
+   neg		r10,r10				# arity still negative
+prim_done:
+   stw		r10,124(temp)			# update arity
+
+Callc:
+   neg		r11,r11				# get address of primitive
+   lwz		r11,0(r11)			# get primitive
+   SAVEREST
+   lwz		r3,BNRPprimitiveCallsTC(RTOC)
+   lwz		r4,0(r3)			# BNRPprimitiveCalls value
+   addi		r4,r4,1				# increment number of prims called
+   stw		r4,0(r3)
+   lwz		r3,taskswitchTC(RTOC)
+   lwz		r3,0(r3)
+   cmpw		r9,r3
+   beq		Tskswtch
+   mr		r3,temp				# primitives take pointer to TCB
+   mtctr	r11				# addr of primitive
+   bcctrl	BO_ALWAYS,0			# perform the function
+Retdc:
+   LOADREGS2
+#   RESTORE_STACK
+   cmpwi	r3,0
+   beq		Fail
+   mr		ppc,cp
+   lwz		r4,112(temp)			# any constraints?
+   cmpwi	r4,0
+   bne		CallCon				# yes, execute them now
+   b		Body
+
+Tskswtch:
+   stw		temp,56(SP)			# store tcb pointer in memory
+   addi		r3,SP,56			# pointer to pointer to TCB
+   mtctr	r11				# addr of primitive
+   bcctrl	BO_ALWAYS,0			# perform the function
+   lwz		temp,56(SP)			# get tcb pointer
+   b		Retdc
+
+CallCon:
+   lwz		r12,112(temp)
+   li		r3,0
+   stw		r3,112(temp)			# empty queue
+   stw		r3,116(temp)
+   b		ContinuList   
+NewExec:
+   lbzu		r10,1(ppc)			# get arity
+   extsb	r10,r10				# sign extend it
+   addi		ppc,ppc,4			# word align it
+   clrrwi	ppc,ppc,2
+   lwz		r11,0(ppc)			# get principle functor
+   addi		ppc,ppc,3			# increment ppc properly
+   b		Ecall
+NewCall:
+   lbzu		r10,1(ppc)			# get arity
+   extsb	r10,r10				# sign extend it
+   addi		ppc,ppc,4			# word align it
+   clrrwi	ppc,ppc,2
+   lwz		r11,0(ppc)			# get principle functor
+   addi		ppc,ppc,3			# increment ppc properly
+#   mr		cp,ppc				
+   addi		cp,ppc,1				# save program counter in cp
+Ecall:
+   lwz		r3,BNRPflagsTC(RTOC)		# get address of BNRPflags
+   lwz		r4,0(r3)			# get value of BNRPflags
+   cmpwi	r4,0				# check for attention/constraints
+   bne		Interrupt			# short branch
+Ecall2:
+   stw		r11,120(temp)			# save symbol for debugging, cut
+   mr		r9,r11					# copy to comapre against taskswitch symbol if a primitive
+   clrlwi	r11,r11,3			# clear top bits of symbol
+   oris		r11,r11,0x2000			# put in address bits
+fstcls:
+   lwz		r11,0(r11)			# get ptr to first clause
+   cmpwi	r11,0				# test for no clauses/primitive
+   ble		Prim				# Prolog primitive
+   mr		ppc,r11
+   stw		lcp,80(temp)			# save lcp as cut point
+   stw		r10,124(temp)			# store number of arguments
+   cmpwi	r10,0				# see if there is a first arg to hash
+   beq		nokey
+   HASHKEY(arg1,r11,nokey)			# non-zero hashcode in r11
+   mr		r9,r11				# key in r9
+key:
+   FINDCLAUSE(ppc,r10,r9,r11,StartHead,Fail)	# sets ppc
+   mr		bh,r9				# bh not needed anymore, save key in it
+   b		newcp
+nokey:
+   NEXTCLAUSE(ppc,r10,r11,StartHead,Fail)	# next clause in r11
+   li		bh,0				# r11=nextclause, r10=arity, bh=key
+newcp:
+   NEWCHPT					# create new choicepoint
+   b		StartHead
+#
+#               function evaluation
+#                       normal arithmetic execution has encountered an unknown or pre-built
+#                       structure, and shifted to clause mode to complete the construction
+#                       now convert the top of the eval stack into a call to the approriate
+#                       routine and  resume normal execution
+#               - princ. functor in d0
+#               - two arguments on stack (in reverse order)
+#               - ppc is pointing to env-size byte (as it should be)
+Funccall:
+   lhzu		r4,1(ppc)			# if next byte (envsize) = 0 and next instruction is proceed
+   cmpwi	r4,0
+   beq		Funccall_exec			# then do exec
+   mr		cp,ppc				# save return address
+Funccall_exec:
+   mr		r11,r12				# move principle functor to r11
+   li		r10,2				# arity is 2
+   lwz		arg2,0(sp)			# second arg
+   lwzu		arg1,-4(sp)			# first arg
+   subi		sp,sp,4				# update sp properly
+   lwz		r3,56(temp)			# get spbase
+   cmpw		r3,sp				# optional check of stack pointer
+   bne		ArError
+   b		Ecall')
+
+define(INDIRECTSUPPORT,`
+Callatm:
+   SYMBOL(r12,Badcall)
+   li		r10,0
+   mr		r11,r12
+   b		Ecall
+
+Callist:
+   lwz		r11,indirectAtomTC(RTOC)
+   lwz		r11,0(r11)
+   li		r10,1
+   b		Ecall
+
+Badcall:
+   b		Badcallerr
+
+CallIndirect:
+   mr		cp,ppc				# save program counter in cp
+   addi		cp,cp,1				# skip save byte
+ExecIndirect:
+   DREF(r12,r3,Badcall)
+   andis.	r0,r12,0x4000			# check for atoms
+   bne		Callatm				# was ATOM
+   andis.	r0,r12,0x2000			# check for lists
+   bne		Callist				# list
+   clrlwi	r12,r12,1			# clear sgn bit
+   oris		r12,r12,0x2000
+   mr		stp,r12				# make sure addr bit is set
+   lhz		r3,0(stp)
+   cmplwi	r3,STRUCTHEADER			# verify header
+   bne		Badcall
+   lwz		r11,4(stp)
+   addi		stp,stp,8			# skip arity & pfunc
+   cmpwi	r11,0
+   blt		execIndirect_prfunc
+   DREFV(r11,r3,Badcall)			# get principle functor
+execIndirect_prfunc:
+   SYMBOL(r11, Badcall)				# must be a symbol
+   li		r10,0				# keep track of arity
+execIndirect_arg1d:
+   lwz		arg1,0(stp)			# get arg 1
+   addi		stp,stp,4
+   cmpwi	arg1,0
+   blt		execIndirect_arg2
+   beq		Ecall				# done if endseq
+   andis.	r0,arg1,0x2000			# check for tailvar
+   beq		execIndirect_arg2
+   addi		stp,stp,-4
+   cmpw		stp,arg1			# unbound tv??
+   beq		execIndirect_tv1
+   mr		stp,arg1
+   b		execIndirect_arg1d
+execIndirect_arg2:
+   addi		r10,r10,1			# increment arity
+execIndirect_arg2d:
+   lwz		arg2,0(stp)			# get arg 2
+   addi		stp,stp,4
+   cmpwi	arg2,0
+   blt		execIndirect_arg3
+   beq		Ecall				# done if endseq
+   andis.	r0,arg2,0x2000			# check for tailvar
+   beq		execIndirect_arg3
+   addi		stp,stp,-4
+   cmpw		stp,arg2			# unbound tv??
+   beq		execIndirect_tv2
+   mr		stp,arg2
+   b		execIndirect_arg2d
+execIndirect_arg3:
+   addi		r10,r10,1			# increment arity
+execIndirect_arg3d:
+   lwz		arg3,0(stp)			# get arg 3
+   addi		stp,stp,4
+   cmpwi	arg3,0
+   blt		execIndirect_arg4
+   beq		Ecall				# done if endseq
+   andis.	r0,arg3,0x2000			# check for tailvar
+   beq		execIndirect_arg4
+   addi		stp,stp,-4
+   cmpw		stp,arg3			# unbound tv??
+   beq		execIndirect_tv3
+   mr		stp,arg3
+   b		execIndirect_arg3d
+execIndirect_arg4:
+   addi		r10,r10,1			# increment arity
+execIndirect_arg4d:
+   lwz		arg4,0(stp)			# get arg 4
+   addi		stp,stp,4
+   cmpwi	arg4,0
+   blt		execIndirect_arg5
+   beq		Ecall				# done if endseq
+   andis.	r0,arg4,0x2000			# check for tailvar
+   beq		execIndirect_arg5
+   addi		stp,stp,-4
+   cmpw		stp,arg4			# unbound tv??
+   beq		execIndirect_tv4
+   mr		stp,arg4
+   b		execIndirect_arg4d
+execIndirect_arg5:
+   addi		r10,r10,1			# increment arity
+execIndirect_arg5d:
+   lwz		arg5,0(stp)			# get arg 5
+   addi		stp,stp,4
+   cmpwi	arg5,0
+   blt		execIndirect_arg6
+   beq		Ecall				# done if endseq
+   andis.	r0,arg5,0x2000			# check for tailvar
+   beq		execIndirect_arg6
+   addi		stp,stp,-4
+   cmpw		stp,arg5			# unbound tv??
+   beq		execIndirect_tv5
+   mr		stp,arg5
+   b		execIndirect_arg5d
+execIndirect_arg6:
+   addi		r10,r10,1			# increment arity
+execIndirect_arg6d:
+   lwz		arg6,0(stp)			# get arg 6
+   addi		stp,stp,4
+   cmpwi	arg6,0
+   blt		execIndirect_arg7
+   beq		Ecall				# done if endseq
+   andis.	r0,arg6,0x2000			# check for tailvar
+   beq		execIndirect_arg7
+   addi		stp,stp,-4
+   cmpw		stp,arg6			# unbound tv??
+   beq		execIndirect_tv6
+   mr		stp,arg6
+   b		execIndirect_arg6d
+execIndirect_arg7:
+   addi		r10,r10,1			# increment arity
+execIndirect_arg7d:
+   lwz		arg7,0(stp)			# get arg 7
+   addi		stp,stp,4
+   cmpwi	arg7,0
+   blt		execIndirect_arg8
+   beq		Ecall				# done if endseq
+   andis.	r0,arg7,0x2000			# check for tailvar
+   beq		execIndirect_arg8
+   addi		stp,stp,-4
+   cmpw		stp,arg7			# unbound tv??
+   beq		execIndirect_tv7
+   mr		stp,arg7
+   b		execIndirect_arg7d
+execIndirect_arg8:					
+   addi		r10,r10,1			# increment arity
+   addi		r3,temp,152			# get addr of arg 7
+execIndirect_loop:
+   lwz		r6,0(stp)			# get arg 7 and above
+   addi		stp,stp,4
+   cmpwi	r6,0
+   blt		execIndirect_put
+   beq		Ecall				# done if endseq
+   andis.	r0,r6,0x2000			# check for tailvar
+   beq		execIndirect_put
+   addi		stp,stp,-4
+   cmpw		stp,r6
+   beq		execIndirect_tvn
+   mr		stp,r6				# put tvar into stp
+   b		execIndirect_loop
+execIndirect_put:
+   stwu		r6,4(r3)
+   addi		r10,r10,1			# increment arity
+   cmpwi	r10,MAXREGS
+   ble		execIndirect_loop
+   b		MiscError
+execIndirect_tv1:
+   oris		arg1,arg1,LISTTAG
+   b		execIndirect_tv
+execIndirect_tv2:
+   oris		arg2,arg2,LISTTAG
+   b		execIndirect_tv
+execIndirect_tv3:
+   oris		arg3,arg3,LISTTAG
+   b		execIndirect_tv
+execIndirect_tv4:
+   oris		arg4,arg4,LISTTAG
+   b		execIndirect_tv
+execIndirect_tv5:
+   oris		arg5,arg5,LISTTAG
+   b		execIndirect_tv
+execIndirect_tv6:
+   oris		arg6,arg6,LISTTAG
+   b		execIndirect_tv
+execIndirect_tv7:
+   oris		arg7,arg7,LISTTAG
+   b		execIndirect_tv
+execIndirect_tvn:
+   oris		r6,r6,LISTTAG
+   stwu		r6,4(r3)			# store the tailvar
+execIndirect_tv:
+   addi		r10,r10,1			# count the tailvar
+   neg		r10,r10				# make arity negative
+   b		Ecall')
+
+define(HASHKEY,`
+   mr		$2,$1				# get first arg
+   cmpwi	$2,0
+   blt		hash_nonvar			# nonvar
+   DREFV($1,r3,hash_var)			# deref $1 in place
+   mr		$2,$1				# make a copy in $2
+hash_nonvar:
+   andis.	r0,$2,0x4000
+   beq		hash_cmpd
+   andis.	r0,$2,0x2000
+   beq		hash_done			# was short int
+   clrlwi	$2,$2,3				# symbol -- clear tag
+   oris		$2,$2,0x2000			# put in address bits
+   lwz		$2,SYMINUSE($2)			# get hashcode and first 2 chars
+   clrlwi	$2,$2,8				# clear any garbage dynamic bits
+   b		hash_done
+hash_var:
+   mr		$1,$2
+   b		$3
+hash_cmpd:					# list or struct case
+   clrlwi	$2,$2,1				# clear sign bit
+   andis.	r0,$2,0x2000			# is list bit set?
+   bne		hash_list
+   oris		$2,$2,0x2000			# set address bit
+   lhz		r3,0($2)			# get header
+   cmplwi	r3,STRUCTHEADER			# really a structure?
+   bne		hash_longcons			# if no then branch
+   lwz		$2,4($2)			# get functor
+   cmpwi	$2,0
+   blt		hash_nonvar
+   DREFV($2,r3,$3)
+   b		hash_nonvar
+hash_longcons:
+   lwz		r3,4($2)
+   lhz		$2,2($2)			# get high longword of number + length
+   add		$2,$2,r3
+   b		hash_done
+hash_varnil:
+   lwz		r10,124(temp)			# arity is zero
+   b		$3
+hash_nillist:
+   cmpwi	r10,-1				# if variadic call with arity 1 and empty list
+   beq		hash_varnil			# then treat as arity 0 else
+   li		$2,STDNIL			# empty list case
+   b		hash_done
+hash_list:
+   mr		r3,$2				# see if there is anything in it
+   lwz		$2,0(r3)
+   cmpwi	$2,0
+   blt		hash_reglist
+   beq		hash_nillist			# empty list
+   andis.	r0,$2,0x2000			# check for tailvar
+   beq		hash_reglist
+   cmpw		$2,r3
+   bne		hash_list			# unwind tailvar
+   b		$3				# unbound tailvar
+hash_reglist:
+   cmpwi	r10,-1				# if variadic arity -1
+   beq		$3
+   li		$2,STDLIST			# non-empty standard list symbol
+hash_done:')   
+
+define(NEWCHPT,`
+   cmpwi	r10,0
+   mr		r8,lcp
+   mr		r4,r10
+   blt		newchpt_variadic
+newchpt_resume:
+   rlwinm	r5,r10,2,0,31			# multiply arg number by 4
+   subf		r6,r5,lcp			# will this cp cause an overflow?
+   subi		r6,r6,CHPT
+   cmpw		r6,ce				# stack check
+   ble		E_full
+   cmpwi	r10,0
+   beq		newchpt_proceed
+   addic.	r12,r10,-7			# skip 7 arguments
+   ble		newchpt_fewer
+   addi		r6,temp,128
+   mtspr	CTR,r12				# copy number of args to count register
+   add		r6,r6,r5			# get address of last arg + 1
+newchpt_loop:
+   lwzu		r7,-4(r6)			# get arg from tcb
+   stwu		r7,-4(lcp)			# store arg into lcp
+   bdnz		newchpt_loop
+   b		newchpt_saverest		# save first 7 args
+newchpt_variadic:
+   neg		r10,r10				# number of args to preserve
+   b		newchpt_resume
+newchpt_fewer:
+   neg		r12,r12
+   cmpwi	r12,7
+   beq		newchpt_proceed
+   cmpwi	r12,6
+   beq		newchpt_saverest1
+   cmpwi	r12,5
+   beq		newchpt_saverest2
+   cmpwi	r12,4
+   beq		newchpt_saverest3
+   cmpwi	r12,3
+   beq		newchpt_saverest4
+   cmpwi	r12,2
+   beq		newchpt_saverest5
+   cmpwi	r12,1
+   beq		newchpt_saverest6
+newchpt_saverest:
+   stwu		arg7,-4(lcp)
+newchpt_saverest6:
+   stwu		arg6,-4(lcp)
+newchpt_saverest5:
+   stwu		arg5,-4(lcp)
+newchpt_saverest4:
+   stwu		arg4,-4(lcp)
+newchpt_saverest3:
+   stwu		arg3,-4(lcp)
+newchpt_saverest2:
+   stwu		arg2,-4(lcp)
+newchpt_saverest1:
+   stwu		arg1,-4(lcp)
+newchpt_proceed:
+   stwu		r4,-4(lcp)			# save arity
+   lwz		r4,120(temp)			# get procname
+   stwu		r4,-4(lcp)			# save procname
+   stwu		cp,-4(lcp)			# store continuation
+   stwu		ce,-4(lcp)			# store current env
+   stwu		te,-4(lcp)			# store trail end
+   stwu		r8,-4(lcp)			# store cutb
+   stwu		hp,-4(lcp)			# store hp
+   cmpw		ce,be
+   blt		newchpt_buried
+   lbz		r4,0(cp)			# number of permanent vars
+   addi		r4,r4,1				# increment by 1
+   rlwinm	r4,r4,2,0,31			# multiply by 4
+   add		be,r4,ce			# end of env stack
+newchpt_buried:
+   stwu		be,-4(lcp)			# critical (end of env stack)
+   stwu		bh,-4(lcp)			# save key
+   stwu		r11,-4(lcp)			# save nextclause
+   mr		bh,hp				# update critical heap')
+
+#
+#                       Constraint utility
+#
+#               Qsuspend -  assumes standard call setup: call arity in r10, pfunc in r11
+#                                       args in regs, temps
+#                               moves call to heap structure, returns structure in r12
+
+define(QSUSPEND,`
+   QSUSPEND_PRIM(`counter')')
+
+define(QSUSPEND_PRIM,`
+   addi		r3,hp,1024			# heap overflow check, 1K buffer zone
+   cmpw		te,r3
+   blt		H_full
+   clrlwi	r3,hp,3				# clear addr bits of hp
+   oris		r12,r3,STRUCTTAG		# make hp into a structure
+   lis		r4,STRUCTHEADER			# make a structure header
+   SAVEARGS					# save args into temp
+   cmpwi	r10,0
+   bge		qsuspend_norm.$1		# negative arity call
+   addi		r5,r10,-1
+   clrlwi	r5,r5,16			# clear top 16 bits
+   or		r4,r4,r5			# proper structure header
+   stw		r4,0(hp)			# store structure header
+   neg		r10,r10				# r10 is index of final tailvar
+   rlwinm	r5,r10,2,22,31			# multiply last arg by 4
+   addi		r3,temp,124			# get start of args
+   add		r3,r3,r5			# addr of last arg
+   lwz		r8,0(r3)			# get last arg
+   cmpwi	r8,0				# make sure is a tailvar
+   bgt		Verror1
+   clrlwi	r8,r8,1				# clear sign bit
+   andis.	r0,r8,0x2000			# check list bit
+   beq		Verror1
+   stw		r8,0(r3)			# update last arg
+   b		qsuspend_copy.$1		# r10 = #args + 1 (pfunc) -1(tvar)
+qsuspend_norm.$1:
+   addi		r5,r10,1			# arity = 1 + #args
+   add		r4,r4,r5			# proper structure header
+   stw		r4,0(hp)			# store sturcture header
+qsuspend_copy.$1:
+   stw		r11,4(hp)			# principle functor
+   cmpwi	r10,0
+   addi		hp,hp,4				# increment hp properly
+   beq		qsuspend_done.$1		# no arguments to structure
+   mtspr	CTR,r10				# copy number of args to count register
+   addi		r4,temp,124
+qsuspend_loop.$1:
+   lwzu		r7,4(r4)			# get arg from tcb
+   stwu		r7,4(hp)			# push arg onto heap
+   bdnz		qsuspend_loop.$1
+qsuspend_done.$1:
+   li		r3,0
+   stw		r3,4(hp)
+   addi		hp,hp,8
+   define(`$1',incr($1))')
+
+define(SYMBOL,`
+   andis.	r0,$1,SYMTAG			# Is it a symbol?
+   lis		r3,SYMTAG
+   cmpw		r0,r3
+   bne		$2')
+
+define(GETNEXT,`
+   GETNEXT_PRIM($1,$2,$3,`counter')')
+
+define(GETNEXT_PRIM,`
+getnext_loop.$4:
+   lwz		$1,0(stp)
+   addi		stp,stp,4
+   cmpwi	$1,0
+   blt		getnext_done.$4			# not var
+   beq		$2				# end of sequence
+   andis.	r0,$1,0x2000			# test for tailvar
+   beq		getnext_done.$4
+   addi		stp,stp,-4
+   mr		r3,$1				# swap arg and stp in case we need to loop
+   mr		$1,stp
+   mr		stp,r3
+   cmpw		stp,$1
+   bne		getnext_loop.$4
+   b		$3
+getnext_done.$4:
+   define(`$4',incr($4))')
+
+define(ESCAPE_UTILS,`
+isvar:
+   lwz		r3,escapeCountTC(RTOC)		# load escape count addr
+   lwz		r4,64(r3)
+   addi		r4,r4,1
+   stw		r4,64(r3)			# store new count
+   cmpwi	r12,0
+   blt		Fail				# not a variable
+   andis.	r0,r12,0x2000			# check to see if tvar
+   bne		isvar_tvar
+isvar_var:
+   DREFV(r12,r11,Body)
+   b		Fail
+isvar_tvar:
+   DREFTV(r12,r11,Fail,isvar_var,Fail)
+   b		Fail
+istvar:
+   lwz		r3,escapeCountTC(RTOC)		# load escape count addr
+   lwz		r4,128(r3)
+   addi		r4,r4,1
+   stw		r4,128(r3)			# store new count
+   andis.	r0,r12,LISTTAG			# tvar comes in a list
+   beq		Fail
+   clrlwi	r12,r12,1			# clear sgn bit
+istvar_unwind:
+   mr		stp,r12
+   lwz		r12,0(stp)			# get first term
+   cmpwi	r12,0
+   ble		Fail				# not a tvar
+   TAILVAR(r12,Fail)				# not a var
+   cmpw		r12,stp
+   bne		istvar_unwind
+   b		Body				# succeed
+ebcut:
+   mflr		r6				# get link register
+   stw		r6,60(SP)			# save LR in stack
+   mr		lcp,r12				# critical lcp becomes lcp
+   RESET_CRITICAL
+   lwz		r6,60(SP)			# retrieve LR from stack
+   mtspr	LR,r6
+   blrl						# return to caller
+snip:						# dcut (no environment (anymore) in this clause )
+   mflr		r6
+   mfcr		r7
+   stw		r7,4(SP)
+   stw		r6,8(SP)			# store LR
+   stwu		SP,-300(SP)			# update stack pointer 
+   stw		r6,60(SP)			# save LR for return
+   mr		r3,lcp
+   cmpw		r3,r12
+   bge		snip_done			# nothing to cut
+snip_loop:
+   mr		r4,r3
+   lwz		r3,16(r4)			# get previous choicepoint
+   cmpw		r3,r12
+   blt		snip_loop
+   bgt		snip_done
+   lwz		r5,24(r4)			# get saved ce from choicepoint
+   cmpw		r5,r11
+   bne		snip_doit
+   mr		r12,r4
+snip_doit:
+   bl		ebcut
+snip_done:
+   addic	SP,SP,300			# restore stack
+   lwz		r10,4(SP)
+   mtcr		r10				# restore CR
+   lwz		r10,8(SP)
+   mtspr	LR,r10				# reload LR
+   blrl						# branch to caller
+deepcut:
+   mflr		r6
+   mfcr		r7
+   stw		r7,4(SP)
+   stw		r6,8(SP)			# store LR
+   stwu		SP,-300(SP)			# update stack pointer 
+   stw		r6,60(SP)			# save LR for return
+   cmpwi	r10,0
+   blt		deepcut_sym
+   DREFV(r10,r9,deepcut_err)
+deepcut_sym:
+   SYMBOL(r10,deepcut_err)
+   mr		r12,ce
+deepcut_loop:
+   lwz		r8,PNAME(r12)			# if same name then done searching
+   cmpw		r8,r10
+   beq		deepcut_done
+   lwz		r7,PRE(r12)
+   cmpw		r7,r12				# last env is linked to itself
+   beq		deepcut_err			# no more environments!
+   mr		r12,r7
+   b		deepcut_loop			# keep searching
+deepcut_err:
+   addic	SP,SP,300			# restore stack
+   lwz		r10,4(SP)
+   mtcr		r10				# restore CR
+   lwz		r10,8(SP)
+   mtspr	LR,r10				# reload LR
+   b		Cuterror
+deepcut_done:
+   lwz		r12,CUTB(r12)
+   cmpw		lcp,r12
+   bge		deepcut_return			# nothing to cut
+   mr		r11,ce
+deepcut_loop2:
+   lwz		r8,PNAME(r11)			# check id against name
+   cmpw		r8,r10
+   beq		deepcut_cont
+   stw		r12,CUTB(r11)			# update this envs cutb
+   lwz		r11,PRE(r11)
+   b		deepcut_loop2			# keep searching
+deepcut_cont:
+   bl		ebcut
+deepcut_return:
+   addic	SP,SP,300			# restore stack
+   lwz		r10,4(SP)
+   mtcr		r10				# restore CR
+   lwz		r10,8(SP)
+   mtspr	LR,r10				# reload LR
+   blrl						# branch to caller
+filtertv:
+   DREFTV(r12,r11,filter_check,filterv,Fail)
+   b		Fail				# is unbound tvar
+filterv:
+   DREFV(r12,r11,Fail)				# dref variable
+   b		filter_check
+filter:
+   lwz		r3,escapeCountTC(RTOC)		# addr of testt count
+   lwz		r4,256(r3)
+   addi		r4,r4,1
+   stw		r4,256(r3)
+filter_check:
+   cmpwi	r12,0
+   blt		filter_nonvar
+   andis.	r0,r12,0x2000			# is var or tvar?
+   beq		filterv
+   b		filtertv
+filter_nonvar:
+   andis.	r0,r12,0x4000			# is atm bit set
+   beq		filter_cmpd
+   andis.	r0,r12,0x2000			# is lst bit set
+   beq		filter_int
+   li		r12,4				# symbol
+   b		fcheck
+filter_cmpd:					# compound
+   andis.	r0,r12,0x2000			# is lst bit set
+   beq		filter_sub
+   li		r12,1				# list
+   b		fcheck
+filter_sub:					# sub
+   clrlwi	r12,r12,1			# clear sgn bit
+   oris		r12,r12,0x2000			# place in addr bits
+   lhz		r11,0(r12)			# get header
+   cmpwi	r11,LONGINT			# check for extended int
+   bne		filter_struc			# was a structure
+   lhz		r11,2(r12)			# get arity
+   cmpwi	r11,1
+   beq		filter_int			# was an integer
+   li		r12,16				# float
+   b		fcheck
+filter_struc:					# structure
+   li		r12,2
+   b		fcheck
+filter_int:					# integer
+   li		r12,8
+fcheck:
+   lbzu		r11,1(ppc)			# get mask byte
+   and.		r0,r12,r11			# compare masks
+   bne		Body
+   b		Fail')
+
+define(ARITH_SUPPORT,`
+evalv:
+   UNBOUND(r12,r4,evaln)
+   b		nonnmbr				# wasnt a number
+evala:
+   cmpwi	r12,0				# var?
+   bgt		evalv
+evaln:
+   li		r3,0
+   mtcrf	0x0040,r3
+   PUSHNUM(r12,nonnmbr,nonnmbr)
+   b		InterpreterLoop			# continue in escape mode
+nonnmbr:					# r12 is non-numeric non-var type, push on stack and shift to clause mode
+   srwi		r9,stp,16			# get stack size
+   clrlwi	r7,stp,16			# get fltbits
+   mr		r8,sp				# store sp for later
+   addi		sp,sp,4				# increment for ease of looping
+nonnmbr_loop:
+   cmpwi	r9,0				# anything on stack?
+   beq		nonnmbr_finish
+   andi.	r0,r7,0x0001			# float or number?
+   srwi		r7,r7,1				# get rid of arg
+   bne		nonnmbr_float
+   addi		r9,r9,-1			# update count
+   lwzu		r12,-4(sp)			# get integer result
+   mr		r3,r12
+   extsh	r12,r12
+   cmpw		r3,r12				# test for short vs. extended result
+   beq		nonnmbr_short
+nonnmbr_long:					# extended integer
+   oris		r12,hp,STRUCTTAG		# mark as a structure
+   lis		r4,LONGINT			# make a long integer struct
+   addi		r4,r4,1
+   stw		r4,0(hp)			# put onto heap
+   stw		r3,4(hp)			# move value to heap
+   addi		hp,hp,8
+   b		nonnmbr_done
+nonnmbr_short:
+   lis		r12,INTTAG			# tag as an integer
+   b		nonnmbr_done
+nonnmbr_float:
+   oris		r12,hp,STRUCTTAG		# mark as a structure
+   lis		r4,LONGINT			# make a float struct
+   addi		r4,r4,2
+   stw		r4,0(hp)			# place header into heap
+   FPSTORE(r9,hp)
+   addi		r9,r9,-1			# decrement count
+nonnmbr_done:
+   stw		r12,0(sp)			# push result onto stack
+   b		nonnmbr_loop
+nonnmbr_finish:
+   li		stp,0
+   mr		sp,r8				# correct sp
+   subi		ppc,r10,1			# Re-execute opcode in clause mode		
+   b		BodyEscapeClause
+escape_is:
+   stwu		r12,4(sp)			# 2nd argument is numeric
+   stwu		r3,4(sp)			# 1st arg is variable
+   lwz		r12,evalConstrainedAtomTC(RTOC)
+   lwz		r12,0(r12)
+   b		Funccall
+popnum:
+   lwz		r3,escapeCountTC(RTOC)
+   lwz		r4,320(r3)			# increment count of logical inferences
+   addi		r4,r4,1
+   stw		r4,320(r3)
+   POPNUM(r12)
+   oris		r5,r5,0x2000			# set addr bit
+   lwz		r6,4(r5)			# constrained?
+   cmpwi	r6,CONSTRAINTMARK
+   beq		escape_is
+   BIND(r5,r12)
+   addi		ppc,ppc,1			# skip env size
+   FPCHECK
+   b		Body   
+popvalv:
+   UNBOUND(r12,r5,popvaln)
+   b		popnum
+popval:
+   cmpwi	r12,0				# var or constant?
+   bgt		popvalv				# was a var
+popvaln:
+   lwz		r3,escapeCountTC(RTOC)
+   lwz		r4,320(r3)			# increment count of logical inferences
+   addi		r4,r4,1
+   stw		r4,320(r3)
+   PUSHNUM(r12,Fail,Fail)
+   AREL(eq,Good,Fail)				# equality compare
+Popdn:
+   addi		ppc,ppc,1			# skip env size
+   lwz		r3,escapeCountTC(RTOC)		# increment number of logical inferences
+   lwz		r4,448(r3)
+   addi		r4,r4,1
+   stw		r4,448(r3)
+   FPCHECK
+   b		Body
+Good:
+   lwz		sp,56(temp)			# clean up sp
+   addi		ppc,ppc,1			# skip env size
+   b		Body
+coerce:						# remove int from sp and turn it into a float
+   mflr		r6				# get link register
+   stw		r6,60(SP)			# save LR in stack
+   lwz		r3,0(sp)			# get int
+   CONVERT_LONG(r3,fp1)				# convert it to a long
+   srwi		r3,stp,16			# get stack size
+   cmpwi	r3,1
+   beq		coerce_1
+   cmpwi	r3,2
+   beq		coerce_2
+   cmpwi	r3,3
+   beq		coerce_3
+   cmpwi	r3,4
+   beq		coerce_4
+   cmpwi	r3,5
+   beq		coerce_5
+   cmpwi	r3,6
+   beq		coerce_6
+   cmpwi	r3,7
+   beq		coerce_7
+   fmr		fp30,fp1
+   b		coerce_done
+coerce_7:
+   fmr		fp29,fp1
+   b		coerce_done
+coerce_6:  
+   fmr		fp28,fp1
+   b		coerce_done
+coerce_5:  
+   fmr		fp27,fp1
+   b		coerce_done
+coerce_4:
+   fmr		fp26,fp1
+   b		coerce_done
+coerce_3:   
+   fmr		fp25,fp1
+   b		coerce_done
+coerce_2:  
+   fmr		fp24,fp1
+   b		coerce_done
+coerce_1:   
+   fmr		fp23,fp1
+coerce_done:
+   lwz		r6,60(SP)			# retrieve LR from stack
+   mtspr	LR,r6
+   blrl						# return to caller')
+
+# Arithmetic relations
+define(AREL,`
+   AREL_PRIM($1,$2,$3,`counter')')
+
+define(AREL_PRIM,`
+   andi.	r0,stp,0x0001			# check top operand
+   bne		arel_rflt.$4			# float if 1
+   andi.	r0,stp,0x0002			# left operand
+   bne		arel_rcnvt.$4			# need to convert right operand to float
+   subis	stp,stp,0x0001			# decrement stack count - count now refers to left arg
+   clrlwi	r0,stp,16			# get float mask
+   srwi		r0,r0,1				# drop right arg
+   clrrwi	stp,stp,16			# remove old float mask
+   or		stp,stp,r0			# insert new mask
+   lwz		r0,-4(sp)			# load left arg
+   lwz		r3,0(sp)			# load right arg
+   subi		sp,sp,4				# remove right arg
+   cmpw		r0,r3				# compare left arg with right arg
+   b$1		$2
+   b		$3
+arel_lcnvt.$4:					# convert left arg to float
+   subis	stp,stp,0x0001			# decrement stack count (by 1 for left arg)
+   subi		sp,sp,4				# back up sp to get left arg
+   bl		coerce
+   addi		sp,sp,4				# make sp correct again
+   b		arel_fltflt.$4
+arel_rcnvt.$4:
+   bl		coerce
+   subis	stp,stp,0x0001			# decrement stack count
+   b		arel_fltflt.$4
+arel_rflt.$4:
+   andi.	r0,stp,0x0002			# float or int?
+   ori		stp,stp,0x0002			# result will be a float
+   beq		arel_lcnvt.$4
+   subis	stp,stp,0x0001			# decrement stack count
+arel_fltflt.$4:
+   clrlwi	r0,stp,16			# get float mask
+   srwi		r0,r0,1				# drop right arg
+   clrrwi	stp,stp,16			# remove old float mask
+   or		stp,stp,r0			# insert new mask
+   srwi		r3,stp,16			# get count
+   subi		sp,sp,4
+   FPOP_COMPARE(r3)
+   b$1		$2
+   b		$3')
+
+define(SEL,`
+   SEL_PRIM($1,`counter')')
+
+define(SEL_PRIM,`
+   andi.	r0,stp,0x0001			# check top operand
+   bne		sel_rflt.$2			# float if 1
+   andi.	r0,stp,0x0002			# left operand
+   bne		sel_rcnvt.$2			# need to convert right operand to float
+   subis	stp,stp,0x0001			# decrement stack count - count now refers to left arg
+   clrlwi	r0,stp,16			# get float mask
+   srwi		r0,r0,1				# drop right arg
+   clrrwi	stp,stp,16			# remove old float mask
+   or		stp,stp,r0			# insert new mask
+   lwz		r0,-4(sp)			# load left arg
+   lwz		r3,0(sp)			# load right arg
+   subi		sp,sp,4				# remove right arg
+   cmpw		r0,r3				# compare left arg with right arg
+   b$1		sel_done.$2
+   stw		r3,0(sp)				# move right item over left
+   b		sel_done.$2
+sel_lcnvt.$2:						# convert left arg to float
+   subis	stp,stp,0x0001			# decrement stack count (by 1 for left arg)
+   subi		sp,sp,4					# back up sp to get left arg
+   bl		coerce
+   addi		sp,sp,4					# make sp correct again
+   b		sel_fltflt.$2
+sel_rcnvt.$2:
+   bl		coerce
+   subis	stp,stp,0x0001			# decrement stack count
+   b		sel_fltflt.$2
+sel_rflt.$2:
+   andi.	r0,stp,0x0002			# float or int?
+   ori		stp,stp,0x0002			# result will be a float
+   beq		sel_lcnvt.$2
+   subis	stp,stp,0x0001			# decrement stack count
+sel_fltflt.$2:
+   clrlwi	r0,stp,16				# get float mask
+   srwi		r0,r0,1					# drop right arg
+   clrrwi	stp,stp,16				# remove old float mask
+   or		stp,stp,r0				# insert new mask
+   srwi		r3,stp,16				# get count
+   subi		sp,sp,4
+   FPOP_COMPARESWAP(r3,$1)
+   define(`$2',decr($2))
+sel_done.$2:
+   define(`$2',incr($2))')
+  
+# POPNUM used to pop the last item only
+# $1 is data reg to return final tagged result in
+# long values get placed in the heap
+
+define(POPNUM,`
+   POPNUM_PRIM($1,`counter')')
+
+define(POPNUM_PRIM,`
+   clrlwi	r3,stp,16				# get float mask
+   andi.	r0,r3,0x0001			# float or int?
+   bne		popnum_float.$2
+   srwi		stp,stp,16				# get stacksize
+   cmpwi	stp,1					# should be only one item on stack
+   bne		ArError
+   lwz		stp,0(sp)				# get result
+   mr		r3,stp
+   extsh	r3,r3
+   cmpw		r3,stp
+   subi		sp,sp,4					# decrement stack
+   bne		popnum_long.$2				# was a long
+   cmpwi	stp,0
+   blt		popnum_minus.$2
+   oris		$1,stp,INTTAG			# make into a short int
+   b		popnum_done.$2
+popnum_minus.$2:
+   andi.	stp,stp,0xFFFF			# clear top word
+   oris		$1,stp,INTTAG			# make into a short int
+   b		popnum_done.$2
+popnum_long.$2:
+   clrlwi	$1,hp,3					# clear tag bits
+   oris		$1,$1,STRUCTTAG			# mark as a structure
+   lis		r3,LONGINT				# make a long integer
+   addi		r3,r3,1
+   stw		r3,0(hp)				# place header onto heap
+   stw		stp,4(hp)				# place value onto heap
+   addi		hp,hp,8
+   b		popnum_done.$2
+popnum_float.$2:
+   clrlwi	$1,hp,3					# clear tag bits
+   oris		$1,$1,STRUCTTAG			# mark as a structure
+   lis		r3,LONGINT				# make a float
+   addi		r3,r3,2
+   stw		r3,0(hp)				# place header onto heap
+   subi		sp,sp,4
+   li		r4,1
+   FPSTORE(r4,hp)					# place float onto heap
+   define(`$2',decr($2))
+popnum_done.$2:
+   define(`$2',incr($2))')
+
+define(PUSHNUM,`
+   PUSHNUM_PRIM($1,$2,$3,`counter')')
+
+define(PUSHNUM_PRIM,`
+   andis.	r0,$1,0x4000			# simple atom?
+   beq		pushnum_cmplx.$4
+   andis.	r0,$1,0x2000			# int or symbol?
+   bne		$2						# was symbol
+   extsh	$1,$1					# sign extend short int
+   stwu		$1,4(sp)				# push onto stack
+   b		pushnum_push.$4
+pushnum_cmplx.$4:
+   andis.	r0,$1,0x8000			# list or struct
+   beq		$3						# out if was a list
+   clrlwi	r3,$1,1					# clear sign bit
+   oris		r3,r3,0x2000			# set addr bit
+   lhz		r0,0(r3)				# get struct
+   cmpwi	r0,LONGINT				# is a long int?
+   bne		$3						# was a structure
+   mr		$1,r3
+   lhz		r0,2($1)				# long or float?
+   cmpwi	r0,1
+   beq		pushnum_longi.$4		# was a longint
+   extrwi	r3,stp,16,16			# get low sixteen bits of status (float mask)
+   slwi		r3,r3,1					# make a new entry in float mask
+   ori		r3,r3,0x0001			# mask as a float
+   clrrwi	stp,stp,16				# clear old float mask
+   or		stp,stp,r3				# put in new mask
+   addis	stp,stp,0x0001			# update count
+   srwi		r3,stp,16				# get count
+   FPPUT(r3,$1)						# r3 is fpr to place float in.
+   define(`$4',decr($4))
+   addi		sp,sp,4					# keep a free stack entry for float
+   b		pushnum_done.$4
+pushnum_longi.$4:
+   lwz		r3,4($1)				# get long
+   stwu		r3,4(sp)				# push long onto stack
+pushnum_push.$4:
+   extrwi	r3,stp,16,16			# get low sixteen bits of status (float mask)
+   slwi		r3,r3,1					# make a new entry in float mask
+   clrrwi	stp,stp,16				# clear old float mask
+   or		stp,stp,r3				# put in new mask
+   addis	stp,stp,0x0001			# update count
+pushnum_done.$4:
+   define(`$4',incr($4))')
+
+define(FPCHECK,`
+   bc		12,4,FPerror			# if FP exception bit of CR1 is set then error
+   ')
+
+define(CLEAR_FPERROR,`
+   mffs		fp2						# put results of FPSCR int fp2
+   stfd		fp2,0(hp)
+   lwz		r3,4(hp)				# get FPSCR
+   andis.	r3,r3,0x8000			# error occured?
+   li		r3,0					# clear CR1
+   mtcrf	0x0040,r3
+   bne		ArError')
+   
+define(FPPUT,`
+   FPPUT_PRIM($1,$2,`counter')')
+
+define(FPPUT_PRIM,`
+   addi		$2,$2,8					# double word align value
+   clrrwi	$2,$2,3
+   cmpwi	$1,1
+   beq		fpput_0.$3
+   cmpwi	$1,2
+   beq		fpput_1.$3
+   cmpwi	$1,3
+   beq		fpput_2.$3
+   cmpwi	$1,4
+   beq		fpput_3.$3
+   cmpwi	$1,5
+   beq		fpput_4.$3
+   cmpwi	$1,6
+   beq		fpput_5.$3
+   cmpwi	$1,7
+   beq		fpput_6.$3
+   cmpwi	$1,8
+   beq		fpput_7.$3
+fpput_0.$3:
+   lfd		fp23,0($2)
+   b		fpput_done.$3
+fpput_1.$3:
+   lfd		fp24,0($2)
+   b		fpput_done.$3
+fpput_2.$3:
+   lfd		fp25,0($2)
+   b		fpput_done.$3
+fpput_3.$3:
+   lfd		fp26,0($2)
+   b		fpput_done.$3
+fpput_4.$3:
+   lfd		fp27,0($2)
+   b		fpput_done.$3
+fpput_5.$3:
+   lfd		fp28,0($2)
+   b		fpput_done.$3
+fpput_6.$3:
+   lfd		fp29,0($2)
+   b		fpput_done.$3
+fpput_7.$3:
+   lfd		fp30,0($2)
+   b		fpput_done.$3
+fpput_done.$3:
+   define(`$3',incr($3))')
+
+define(FPPUSH,`
+   FPPUSH_PRIM($1,$2,`counter')')
+
+define(FPPUSH_PRIM,`
+   cmpwi	$1,1
+   beq		fppush_0.$3
+   cmpwi	$1,2
+   beq		fppush_1.$3
+   cmpwi	$1,3
+   beq		fppush_2.$3
+   cmpwi	$1,4
+   beq		fppush_3.$3
+   cmpwi	$1,5
+   beq		fppush_4.$3
+   cmpwi	$1,6
+   beq		fppush_5.$3
+   cmpwi	$1,7
+   beq		fppush_6.$3
+   cmpwi	$1,8
+   beq		fppush_7.$3
+fppush_0.$3:
+   fmr		fp23,$2
+   b		fppush_done.$3
+fppush_1.$3:
+   fmr		fp24,$2
+   b		fppush_done.$3
+fppush_2.$3:
+   fmr		fp25,$2
+   b		fppush_done.$3
+fppush_3.$3:
+   fmr		fp26,$2
+   b		fppush_done.$3
+fppush_4.$3:
+   fmr		fp27,$2
+   b		fppush_done.$3
+fppush_5.$3:
+   fmr		fp28,$2
+   b		fppush_done.$3
+fppush_6.$3:
+   fmr		fp29,$2
+   b		fppush_done.$3
+fppush_7.$3:
+   fmr		fp30,$2
+fppush_done.$3:
+   define(`$3',incr($3))')
+
+define(FPPUSH2,`
+   FPPUSH2_PRIM($1,$2,`counter')')
+
+define(FPPUSH2_PRIM,`
+   cmpwi	$1,1
+   beq		fppush2_0.$3
+   cmpwi	$1,2
+   beq		fppush2_1.$3
+   cmpwi	$1,3
+   beq		fppush2_2.$3
+   cmpwi	$1,4
+   beq		fppush2_3.$3
+   cmpwi	$1,5
+   beq		fppush2_4.$3
+   cmpwi	$1,6
+   beq		fppush2_5.$3
+   cmpwi	$1,7
+   beq		fppush2_6.$3
+   cmpwi	$1,8
+   beq		fppush2_7.$3
+fppush2_0.$3:
+   fmr		$2,fp23
+   b		fppush2_done.$3
+fppush2_1.$3:
+   fmr		$2,fp24
+   b		fppush2_done.$3
+fppush2_2.$3:
+   fmr		$2,fp25
+   b		fppush2_done.$3
+fppush2_3.$3:
+   fmr		$2,fp26
+   b		fppush2_done.$3
+fppush2_4.$3:
+   fmr		$2,fp27
+   b		fppush2_done.$3
+fppush2_5.$3:
+   fmr		$2,fp28
+   b		fppush2_done.$3
+fppush2_6.$3:
+   fmr		$2,fp29
+   b		fppush2_done.$3
+fppush2_7.$3:
+   fmr		$2,fp30
+fppush2_done.$3:
+   define(`$3',incr($3))')
+
+define(FPSTORE,`
+   FPSTORE_PRIM($1,$2,`counter')')
+
+define(FPSTORE_PRIM,`
+   addi		r3,$2,8				# double word align it
+   clrrwi	r3,r3,3
+   cmpwi	$1,1
+   beq		fpstore_0.$3
+   cmpwi	$1,2
+   beq		fpstore_1.$3
+   cmpwi	$1,3
+   beq		fpstore_2.$3
+   cmpwi	$1,4
+   beq		fpstore_3.$3
+   cmpwi	$1,5
+   beq		fpstore_4.$3
+   cmpwi	$1,6
+   beq		fpstore_5.$3
+   cmpwi	$1,7
+   beq		fpstore_6.$3
+   cmpwi	$1,8
+   beq		fpstore_7.$3
+fpstore_0.$3:
+   stfd		fp23,0(r3)
+   b		fpstore_done.$3
+fpstore_1.$3:
+   stfd		fp24,0(r3)
+   b		fpstore_done.$3
+fpstore_2.$3:
+   stfd		fp25,0(r3)
+   b		fpstore_done.$3
+fpstore_3.$3:
+   stfd		fp26,0(r3)
+   b		fpstore_done.$3
+fpstore_4.$3:
+   stfd		fp27,0(r3)
+   b		fpstore_done.$3
+fpstore_5.$3:
+   stfd		fp28,0(r3)
+   b		fpstore_done.$3
+fpstore_6.$3:
+   stfd		fp29,0(r3)
+   b		fpstore_done.$3
+fpstore_7.$3:
+   stfd		fp30,0(r3)
+fpstore_done.$3:
+   andi.	r0,$2,0x0004		# was heap aligned?
+   beq		fpstore_align.$3	# alignment was needed
+   b		fpstore_finish.$3
+fpstore_align.$3:
+   addi		$2,$2,4				# skip an extra cell due to alignment
+   li		r3,0
+   stw		r3,0($2)			# clear unused heap cell
+fpstore_finish.$3:
+   addi		$2,$2,12			# put pointer to end of heap
+   define(`$3',incr($3))')
+
+define(FPOP_COMPARE,`
+   FPOP_COMPARE_PRIM($1,`counter')')
+
+define(FPOP_COMPARE_PRIM,`
+   cmpwi	$1,0
+   beq		FPerror
+   cmpwi	$1,1
+   beq		fpopcompare_1.$2
+   cmpwi	$1,2
+   beq		fpopcompare_2.$2
+   cmpwi	$1,3
+   beq		fpopcompare_3.$2
+   cmpwi	$1,4
+   beq		fpopcompare_4.$2
+   cmpwi	$1,5
+   beq		fpopcompare_5.$2
+   cmpwi	$1,6
+   beq		fpopcompare_6.$2
+   cmpwi	$1,7
+   beq		fpopcompare_7.$2
+   cmpwi	$1,8
+   beq		FPerror
+fpopcompare_1.$2:
+   fcmpu	0,fp23,fp24
+   b		fpopcompare_done.$2
+fpopcompare_2.$2:
+   fcmpu	0,fp24,fp25
+   b		fpopcompare_done.$2
+fpopcompare_3.$2:
+   fcmpu	0,fp25,fp26
+   b		fpopcompare_done.$2
+fpopcompare_4.$2:
+   fcmpu	0,fp26,fp27
+   b		fpopcompare_done.$2
+fpopcompare_5.$2:
+   fcmpu	0,fp27,fp28
+   b		fpopcompare_done.$2
+fpopcompare_6.$2:
+   fcmpu	0,fp28,fp29
+   b		fpopcompare_done.$2
+fpopcompare_7.$2:
+   fcmpu	0,fp29,fp30
+fpopcompare_done.$2:
+   define(`$2',incr($2))')
+
+define(FPOP_COMPARESWAP,`
+   FPOP_COMPARESWAP_PRIM($1,$2,`counter')')
+
+define(FPOP_COMPARESWAP_PRIM,`
+   cmpwi	$1,0
+   beq		FPerror
+   cmpwi	$1,1
+   beq		fpopcompareswap_1.$3
+   cmpwi	$1,2
+   beq		fpopcompareswap_2.$3
+   cmpwi	$1,3
+   beq		fpopcompareswap_3.$3
+   cmpwi	$1,4
+   beq		fpopcompareswap_4.$3
+   cmpwi	$1,5
+   beq		fpopcompareswap_5.$3
+   cmpwi	$1,6
+   beq		fpopcompareswap_6.$3
+   cmpwi	$1,7
+   beq		fpopcompareswap_7.$3
+   cmpwi	$1,8
+   beq		FPerror
+fpopcompareswap_1.$3:
+   fcmpu	0,fp23,fp24
+   b$2		fpopcompareswap_done.$3
+   fmr		fp23,fp24
+   b		fpopcompareswap_done.$3
+fpopcompareswap_2.$3:
+   fcmpu	0,fp24,fp25
+   b$2		fpopcompareswap_done.$3
+   fmr		fp24,fp25
+   b		fpopcompareswap_done.$3
+fpopcompareswap_3.$3:
+   fcmpu	0,fp25,fp26
+   b$2		fpopcompareswap_done.$3
+   fmr		fp25,fp26
+   b		fpopcompareswap_done.$3
+fpopcompareswap_4.$3:
+   fcmpu	0,fp26,fp27
+   b$2		fpopcompareswap_done.$3
+   fmr		fp26,fp27
+   b		fpopcompareswap_done.$3
+fpopcompareswap_5.$3:
+   fcmpu	0,fp27,fp28
+   b$2		fpopcompareswap_done.$3
+   fmr		fp27,fp28
+   b		fpopcompareswap_done.$3
+fpopcompareswap_6.$3:
+   fcmpu	0,fp28,fp29
+   b$2		fpopcompareswap_done.$3
+   fmr		fp28,fp29
+   b		fpopcompareswap_done.$3
+fpopcompareswap_7.$3:
+   fcmpu	0,fp29,fp30
+   b$2		fpopcompareswap_done.$3
+   fmr		fp29,fp30
+fpopcompareswap_done.$3:
+   define(`$3',incr($3))')
+
+define(FPOP1,`
+   FPOP1_PRIM($1,$2,`counter')')
+
+define(FPOP1_PRIM,`
+   mtfsb0	0					# clear FX bit of FPSCR
+   cmpwi	$2,0
+   beq		FPerror
+   cmpwi	$2,1
+   beq		fpop1_1.$3
+   cmpwi	$2,2
+   beq		fpop1_2.$3
+   cmpwi	$2,3
+   beq		fpop1_3.$3
+   cmpwi	$2,4
+   beq		fpop1_4.$3
+   cmpwi	$2,5
+   beq		fpop1_5.$3
+   cmpwi	$2,6
+   beq		fpop1_6.$3
+   cmpwi	$2,7
+   beq		fpop1_7.$3
+   cmpwi	$2,8
+   beq		fpop1_8.$3
+   b		FPerror
+fpop1_1.$3:
+   $1		fp23,fp23
+   b		fpop1_done.$3
+fpop1_2.$3:
+   $1		fp24,fp24
+   b		fpop1_done.$3
+fpop1_3.$3:
+   $1		fp25,fp25
+   b		fpop1_done.$3
+fpop1_4.$3:
+   $1		fp26,fp26
+   b		fpop1_done.$3
+fpop1_5.$3:
+   $1		fp27,fp27
+   b		fpop1_done.$3
+fpop1_6.$3:
+   $1		fp28,fp28
+   b		fpop1_done.$3
+fpop1_7.$3:
+   $1		fp29,fp29
+   b		fpop1_done.$3
+fpop1_8.$3:
+   $1		fp30,fp29
+fpop1_done.$3:
+   define(`$3',incr($3))')
+
+define(FPOP2,`
+   FPOP2_PRIM($1,$2,`counter')')
+
+define(FPOP2_PRIM,`
+   mtfsb0	0					# clear FX bit of FPSCR
+   cmpwi	$2,0
+   beq		FPerror
+   cmpwi	$2,1
+   beq		fpop2_1.$3
+   cmpwi	$2,2
+   beq		fpop2_2.$3
+   cmpwi	$2,3
+   beq		fpop2_3.$3
+   cmpwi	$2,4
+   beq		fpop2_4.$3
+   cmpwi	$2,5
+   beq		fpop2_5.$3
+   cmpwi	$2,6
+   beq		fpop2_6.$3
+   cmpwi	$2,7
+   beq		fpop2_7.$3
+   cmpwi	$2,8
+   beq		FPerror
+fpop2_1.$3:
+   $1		fp23,fp23,fp24
+   b		fpop2_done.$3
+fpop2_2.$3:
+   $1		fp24,fp24,fp25
+   b		fpop2_done.$3
+fpop2_3.$3:
+   $1		fp25,fp25,fp26
+   b		fpop2_done.$3
+fpop2_4.$3:
+   $1		fp26,fp26,fp27
+   b		fpop2_done.$3
+fpop2_5.$3:
+   $1		fp27,fp27,fp28
+   b		fpop2_done.$3
+fpop2_6.$3:
+   $1		fp28,fp28,fp29
+   b		fpop2_done.$3
+fpop2_7.$3:
+   $1		fp29,fp29,fp30
+fpop2_done.$3:
+   define(`$3',incr($3))')
+
+define(FPOPX2,`
+   FPOPX2_PRIM($1,$2,$3,`counter')')
+
+define(FPOPX2_PRIM,`
+   mtfsb0	0					# clear FX bit of FPSCR
+   cmpwi	$3,0
+   beq		FPerror
+   cmpwi	$3,1
+   beq		fpopx2_1.$4
+   cmpwi	$3,2
+   beq		fpopx2_2.$4
+   cmpwi	$3,3
+   beq		fpopx2_3.$4
+   cmpwi	$3,4
+   beq		fpopx2_4.$4
+   cmpwi	$3,5
+   beq		fpopx2_5.$4
+   cmpwi	$3,6
+   beq		fpopx2_6.$4
+   cmpwi	$3,7
+   beq		fpopx2_7.$4
+   cmpwi	$3,8
+   beq		fpopx2_8.$4
+   b		FPerror
+fpopx2_1.$4:
+   $1		fp23,fp23,$2
+   b		fpopx2_done.$4
+fpopx2_2.$4:
+   $1		fp24,fp24,$2
+   b		fpopx2_done.$4
+fpopx2_3.$4:
+   $1		fp25,fp25,$2
+   b		fpopx2_done.$4
+fpopx2_4.$4:
+   $1		fp26,fp26,$2
+   b		fpopx2_done.$4
+fpopx2_5.$4:
+   $1		fp27,fp27,$2
+   b		fpopx2_done.$4
+fpopx2_6.$4:
+   $1		fp28,fp28,$2
+   b		fpopx2_done.$4
+fpopx2_7.$4:
+   $1		fp29,fp29,$2
+   b		fpopx2_done.$4
+fpopx2_8.$4:
+   $1		fp30,fp29,$2
+fpopx2_done.$4:
+   define(`$4',incr($4))')
+
+define(FLOAT,`
+   FLOAT_PRIM(`counter')')
+
+define(FLOAT_PRIM,`
+   andi.	r0,stp,0x0001		# last arg a float?
+   bne		float_done.$1
+   bl		coerce
+   ori		stp,stp,0x0001		# mark last arg a float
+float_done.$1:
+   define(`$1',incr($1))')
+   
+define(CONVERT_LONG,`
+   xoris	$1,$1,0x8000
+   stw		$1,112(SP)			# load bottom half of new float
+   lfd		$2,108(SP)			# load as double precision float
+   fsub		$2,$2,fp31			# long converted to float')
+
+define(CONVERT_FP,`
+   CONVERT_FP_PRIM($1,`counter')')
+
+define(CONVERT_FP_PRIM,`
+   cmpwi	$1,1
+   beq		convertfp1.$2
+   cmpwi	$1,2
+   beq		convertfp2.$2
+   cmpwi	$1,3
+   beq		convertfp3.$2
+   cmpwi	$1,4
+   beq		convertfp4.$2
+   cmpwi	$1,5
+   beq		convertfp5.$2
+   cmpwi	$1,6
+   beq		convertfp6.$2
+   cmpwi	$1,7
+   beq		convertfp7.$2
+   cmpwi	$1,8
+   beq		convertfp8.$2
+convertfp1.$2:
+   fmr		fp1,fp23
+   b		convertfp_doit.$2
+convertfp2.$2:
+   fmr		fp1,fp24
+   b		convertfp_doit.$2
+convertfp3.$2:
+   fmr		fp1,fp25
+   b		convertfp_doit.$2
+convertfp4.$2:
+   fmr		fp1,fp26
+   b		convertfp_doit.$2
+convertfp5.$2:
+   fmr		fp1,fp27
+   b		convertfp_doit.$2
+convertfp6.$2:
+   fmr		fp1,fp28
+   b		convertfp_doit.$2
+convertfp7.$2:
+   fmr		fp1,fp29
+   b		convertfp_doit.$2
+convertfp8.$2:
+   fmr		fp1,fp30
+convertfp_doit.$2:
+   fctiw	fp1,fp1                                 # convert to integer
+   stfd		fp1,0(hp)								# place 8 byte value on heap (temporary)
+   lwz		r0,4(hp)								# load integer
+   stw		r0,0(sp)								# place on stack
+   define(`$2',incr($2))')
+
+#
+#                       DYADIC  Intop, Fop
+#                       if both inputs are integers, do as integer op
+#                       else  [ if one is int, convert it to  float
+#                                       do as float op]
+#     logically  stack is like:
+#                top :   right operand
+#                                left operand
+#                                ...
+define(DYADIC,`
+   DYADIC_PRIM(`$1',$2,`counter')')
+
+define(DYADIC_PRIM,`
+   andi.	r0,stp,0x0001			# check top operand
+   bne		dyadic_rflt.$3			# float if 1
+   andi.	r0,stp,0x0002			# left operand
+   bne		dyadic_rcnvt.$3			# need to convert right operand to float
+   subis	stp,stp,0x0001			# decrement stack count - count now refers to left arg
+   clrlwi	r0,stp,16				# get float mask
+   srwi		r0,r0,1					# drop right arg
+   clrrwi	stp,stp,16				# remove old float mask
+   or		stp,stp,r0				# insert new mask
+   lwz		r4,-4(sp)				# load left arg
+   lwz		r3,0(sp)				# load right arg
+   subi		sp,sp,4					# remove right arg
+   $1
+   b		dyadic_done.$3
+dyadic_lcnvt.$3:						# convert left arg to float
+   subis	stp,stp,0x0001			# decrement stack count (by 1 for left arg)
+   subi		sp,sp,4					# back up sp to get left arg
+   bl		coerce
+   addi		sp,sp,4					# make sp correct again
+   b		dyadic_fltflt.$3
+dyadic_rcnvt.$3:
+   bl		coerce
+   subis	stp,stp,0x0001			# decrement stack count
+   b		dyadic_fltflt.$3
+dyadic_rflt.$3:
+   andi.	r0,stp,0x0002			# float or int?
+   ori		stp,stp,0x0002			# result will be a float
+   beq		dyadic_lcnvt.$3
+   subis	stp,stp,0x0001			# decrement stack count
+dyadic_fltflt.$3:
+   clrlwi	r0,stp,16				# get float mask
+   srwi		r0,r0,1					# drop right arg
+   clrrwi	stp,stp,16				# remove old float mask
+   or		stp,stp,r0				# insert new mask
+   srwi		r3,stp,16				# get count
+   subi		sp,sp,4
+   FPOP2($2,r3)
+   define(`$3',decr($3))
+dyadic_done.$3:
+   define(`$3',incr($3))')
+
+define(MONADI,`
+   andi.	r0,stp,0x0001			# int or float
+   beq		InterpreterLoop			# is an integer
+   srwi		r3,stp,16				# get count
+   mtfsfi	7,$1					# set the rounding mode
+   CONVERT_FP(r3)					# convert the float to an integer
+   clrrwi	stp,stp,1				# clear mask bit
+   mtfsfi	7,RNDNEAREST			# reset rounding mode
+   b		InterpreterLoop')
+
+define(MONADF,`
+   MONADF_PRIM($1,`counter')')
+
+define(MONADF_PRIM,`
+   andi.	r0,stp,0x0001			# float or int?
+   bne		monadf_doit.$2			# was a float
+   bl		coerce
+   ori		stp,stp,0x0001			# mark as a float
+monadf_doit.$2:
+   srwi		r3,stp,16				# get count
+   FPOP1($1,r3)
+   b		InterpreterLoop')
+
+define(MONADF_FUNC,`
+   MONADF_FUNC_PRIM($1,`counter')')
+
+define(MONADF_FUNC_PRIM,`
+   srwi		r3,stp,16				# get stacksize
+   cmpwi	r3,1					# must have 1 item
+   blt		Fail
+   andi.	r0,stp,0x0001			# integer or float?
+   bne		float_arg.$2
+   lwz		r5,0(sp)				# get value
+   CONVERT_LONG(r5,fp1)				# place value into 1st float arg
+   mtfsb0	0						# clear error
+   bl		.$1{PR}					# do operation
+   b		monadf_finish.$2
+float_arg.$2:
+   FPPUSH2(r3,fp1)
+   define(`$2',decr($2))
+   mtfsb0	0						# clear error
+   bl		.$1{PR}					# do operation
+monadf_finish.$2:
+   CLEAR_FPERROR
+   srwi		r3,stp,16				# get stack size
+   FPPUSH(r3,fp1)					# place result into proper fp reg
+   ori		stp,stp,0x0001			# tag result as a float
+   b		InterpreterLoop')
+
+define(BREAK,`
+   li		r3,0x80			# load body value
+   stb		r3,69(temp)		# store value into ppsw
+   li		r3,0
+   sth		r3,70(temp)		# clear error
+   lwz		WAMTable,BodyTableTC(RTOC)
+   b		Exit')
+
+define(ECUT,`
+   addi		ppc,ppc,1		# skip env size from instruction
+   lwz		r3,escapeCountTC(RTOC)	# get escapeCount addr
+   lwz		r4,4(r3)
+   addi		r4,r4,1
+   stw		r4,4(r3)		# store new ecut count
+   lwz		r12,CUTB(ce)		# get env cutb
+   cmpw		r12,lcp
+   ble		Body
+   bl		ebcut
+   b		Body')
+
+define(DCUT,`
+   lwz		r3,escapeCountTC(RTOC)		# get escapeCount addr
+   lwz		r4,8(r3)
+   addi		r4,r4,1
+   stw		r4,8(r3)					# store new dcut count
+   lwz		r12,80(temp)				# get cutb from tcb
+   cmpw		lcp,r12						# compare with last choice point
+   bge		Body
+   lbz		r3,1(ppc)					# is the next opcode a proceed?
+   cmpwi	r3,0
+   beq		dcut_posgc
+dcut_nogc:
+   bl		ebcut						# not proceed so just cut
+   b		Body
+dcut_nogc2:
+   lwz		r12,80(temp)				# move cutb point back
+   bl		ebcut
+   b		Body
+dcut_posgc:
+   lwz		r10,BNRP_gcFlagTC(RTOC)		# get BNRP_gcFlag addr
+   lwz		r10,0(r10)					# get BNRP_gcFlag value
+   cmpwi	r10,0						# if zero then no garbage collection
+   beq		dcut_nogc
+   lwz		r11,12(r12)					# get heap value of cutb
+   subf		r4,r11,hp					# get difference of hp - criticalhp(cutb)
+   cmpw		r4,r10						# if difference is greater than BNRP_gcFlag then do gc
+   ble		dcut_nogc						# not worth doing gc
+   lwz		r3,28(r12)					# get continuation pointer
+   cmpw		r3,cp
+   bne		dcut_srch
+   lwz		r4,4(r12)					# get key
+   cmpwi	r4,-1						# skip dummy choicepoints
+   bne		dcut_gcproc
+   lwz		r12,16(r12)					# skip dummy
+   stw		r12,80(temp)				# store new cutb value
+dcut_gcproc:
+   li		r3,0
+   stw		r3,124(temp)				# Zero args
+   mr		r3,lcp						# load lcp into first arg
+   stw		hp,88(temp)					# save hp
+   addi		r4,temp,88					# load addr of hp into 2nd arg
+   mr		r5,te						# load te into 3rd arg
+   SAVEARGS
+   addi		r6,temp,124					# load addr of args into 4th arg
+   bl		.BNRP_gc_proceed{PR}
+   nop
+   LOADARGS
+   lwz		r12,80(temp)				# get cutb
+   lwz		hp,88(temp)					# reload hp
+   mr		ppc,cp						# do the proceed
+   bl		ebcut
+   b		Body
+dcut_srch:								# new lcp was not suitable - try the next later chpt
+   mr		r8,r12
+   mr		r11,lcp
+dcut_loop:
+   mr		r12,r11
+   lwz		r11,16(r12)
+   cmpw		r11,r8						# search for it (note: older means higher in memory)
+   blt		dcut_loop					# found it
+   lwz		r11,12(r12)					# get heap pointer
+   subf		r4,r11,hp					# get difference of hp - criticalhp(cutb)
+   cmpw		r4,r10						# if difference is greater than BNRP_gcFlag then do gc
+   ble		dcut_nogc2					# not worth doing gc
+   cmpw		lcp,r12
+   bge		dcut_gcproc
+   bl		ebcut
+   b		dcut_gcproc')
+
+define(PUSH_NIL,`
+   lwz		r3,64(temp)		# get empty list value
+   stw		r3,0(hp)		# place in heap
+   addi		hp,hp,4
+   b		Body')
+
+define(EVAL_CONS,`
+   mr		r10,ppc			# store opcode in case need to go to clause mode
+   addi		ppc,ppc,4		# word align ppc
+   clrrwi	ppc,ppc,2
+   lwz		r12,0(ppc)		# get constant
+   addi		ppc,ppc,3		# increment ppc correctly
+   b		evaln')
+		
+define(CALLINDIRECT,`
+   mr		r12,arg1
+   b		CallIndirect')
+
+define(CALL,`
+   b		NewCall')
+
+define(EXECINDIRECT,`
+   mr		r12,arg1
+   b		ExecIndirect')
+
+define(EXEC,`
+   b		NewExec')
+
+define(CALL_CLAUSE,`
+   mr		cp,ppc						# clause$$ must be called from between alloc/dealloc
+   addi		cp,cp,1						# skip save byte
+   mr		r9,arg1						# get coded addr of clause into r9
+   stw		lcp,80(temp)				# update cutb
+   DREF(r9,r3,Fail)
+   LONGINTEGER(r9,Fail)						# push result onto stack
+   mr		ppc,r9
+   DREF(arg2,r8,clause_Vhd)				# get term
+   LIST(arg2,Fail)
+   mr		stp,arg2
+   DREFTV(stp,r9,Fail,Fail,Fail)		# only [V..] allowed
+   BINDTV(stp,hp)						# bind tailvar to current heap
+   b		clause_cons
+clause_Vhd:
+   oris		r10,hp,LISTTAG				# make args into a list
+   BIND(r8,r10)
+clause_cons:							# now construct header
+   addi		r8,temp,124					# will put new vars into temp arg array
+   addi		ppc,ppc,CLAUSEHEADER-4		# assumes ppc => start of clause record
+   lwz		r9,0(ppc)					# get clause arity
+   addi		ppc,ppc,3
+   mr		r6,r9
+   cmpwi	r9,0
+   bgt		clause_args					# normal case + arity
+   beq		clause_positv				# zero arity - bind tv to endseq
+   neg		r9,r9						# clause arity was negative
+   addi		r9,r9,-1					# subtract off for last arg
+   cmpwi	r9,0
+   beq		clause_endlp
+clause_args:
+   mtspr		CTR,r9					# move r9 to count register for looping
+clause_lp:
+   clrlwi	r3,hp,3						# make a var from heap
+   stwu		r3,4(r8)					# new var in args
+   stw		r3,0(hp)					# place var in heap
+   addi		hp,hp,4
+   bdnz		clause_lp
+clause_endlp:
+   cmpwi	r6,0						# check sign bit of arity
+   bge		clause_positv
+   stw		hp,0(hp)					# store tailvar
+   oris		r10,hp,LISTTAG				# make into list
+   addi		hp,hp,4
+   stwu		r10,4(r8)					# store tailvar
+   b		clause_body
+clause_positv:
+   li		r3,0
+   stw		r3,0(hp)					# end seq
+   addi		hp,hp,4
+clause_body:							# start new list
+   DREF(arg3,r10,clause_Vbd)
+   LIST(arg3,Fail)
+   mr		stp,arg3
+   DREFTV(stp,r9,Fail,Fail,Fail)		# only [V..] allowed
+   BINDTV(stp,hp)						# bind tailvar to current hp
+   b		clause_bdlst
+clause_Vbd:
+   oris		r8,hp,LISTTAG				# make hp into a list
+   BIND(r10,r8)
+clause_bdlst:
+   lwz		r3,clauseListTC(RTOC)		# get addr of clauseList
+   stw		hp,0(r3)					# store heap pointer in clauseList
+   li		r3,0
+   stw		r3,0(hp)					# place for tailvar/endseq
+   addi		hp,hp,4
+   LOADARGS								# make sure args are correct
+   lwz		r3,inClauseTC(RTOC)
+   li		r4,1
+   sth		r4,0(r3)					# update inClause byte
+   b		Head')
+   
+define(EXEC_ADDR,`
+   DREF(arg1,r3,Fail)
+   LONGINTEGER(arg1,Fail)
+   addi		ppc,arg1,CLAUSEHEADER			# skip header to find first byte of goal
+   DREF(arg2,r3,Fail)							# variable not allowed
+   mr		stp,arg2
+   GETNEXT(arg1,execaddr_Call,Fail)
+   GETNEXT(arg2,execaddr_Call,Fail)
+   GETNEXT(arg3,execaddr_Call,Fail)
+   GETNEXT(arg4,execaddr_Call,Fail)
+   GETNEXT(arg5,execaddr_Call,Fail)
+   GETNEXT(arg6,execaddr_Call,Fail)
+   GETNEXT(arg7,execaddr_Call,Fail)
+   addi		r12,temp,152					# addr of arg7
+execaddr_Loop:
+   GETNEXT(r11,execaddr_Call,Fail)
+   stw		r11,4(r12)						# store arg into tcb
+   b		execaddr_Loop
+execaddr_Call:
+   stw		lcp,80(temp)					# move lcp into cutb
+   b		StartHead')
+
+define(FAIL,`
+   lwz		r3,escapeCountTC(RTOC)			# get escapeCount addr
+   lwz		r4,60(r3)
+   addi		r4,r4,1					# increment it
+   stw		r4,60(r3)				# store it
+   b		Fail')
+
+define(VART,`
+   mr		r12,$1
+   b		isvar')
+
+define(VART_TCB,`
+   lbzu		r3,1(ppc)			# get argument offset
+   rlwinm	r3,r3,2,22,31			# multiply by 4
+   addi		r12,temp,124
+   lwzx		r12,r12,r3			# get argument
+   b		isvar')
+
+define(VARP,`
+   li		r12,$1				# get env offset
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   lwzx		r12,ce,r12			# get env variable
+   b		isvar')
+
+define(VARP_TCB,`
+   lbzu		r12,1(ppc)			# get var index from code stream
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   lwzx		r12,ce,r12			# get env variable
+   b		isvar')
+   
+define(TVART,`
+   mr		r12,$1
+   b		istvar')
+
+define(TVART_TCB,`
+   lbzu		r3,1(ppc)			# get argument offset
+   rlwinm	r3,r3,2,22,31			# multiply by 4
+   addi		r12,temp,124
+   lwzx		r12,r12,r3			# get argument
+   b		istvar')
+
+define(TVARP,`
+   li		r12,$1				# get env offset
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   lwzx		r12,ce,r12			# get env variable
+   b		istvar')
+
+define(TVARP_TCB,`
+   lbzu		r12,1(ppc)			# get var index from code stream
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   lwzx		r12,ce,r12			# get env variable
+   b		istvar')
+
+define(MORE_CHPTS,`
+   mr		r11,lcp
+   lwz		r12,CUTB(ce)		# get cutb of ce
+morechpts_loop:
+   cmpw		r12,r11
+   ble		Fail				# equal or greater, so no choicepoints remaining, fail
+   lwz		r10,4(r11)			# check for dummy
+   cmpwi	r10,-1
+   bne		Body					# not a dummy so succeed
+   lwz		r11,16(r11)				# get previous choicepoint
+   b		morechpts_loop			# try again')
+   
+define(CCUT,`
+   lwz		r3,cutcutAtomTC(RTOC)	# get cutcutAtom addr
+   lwz		r3,0(r3)
+   stw		r3,120(temp)			# store cutcutAtom in tcb procname
+   lwz		r12,CUTB(ce)			# get cutb of ce
+   lwz		r11,PRE(ce)				# get previous env
+   bl		snip
+   addi		ppc,ppc,1				# skip env size
+   b		Body')
+
+define(CDCUT,`
+   lwz		r3,cutcutAtomTC(RTOC)	# get cutcutAtom addr
+   lwz		r3,0(r3)
+   stw		r3,120(temp)			# store cutcutAtom in tcb procname
+   lwz		r12,80(temp)			# get cutb point from tcb
+   mr		r11,ce
+   bl		snip
+   b		Body')
+
+define(CCUTFAIL,`
+   lwz		r3,cutFailAtomTC(RTOC)	# get cutFailAtom addr
+   lwz		r3,0(r3)
+   stw		r3,120(temp)			# store cutFailAtom in tcb procname
+   lwz		r12,CUTB(ce)			# get cutb of ce
+   lwz		r11,PRE(ce)				# get previous env
+   bl		snip
+   b		Fail')
+
+define(CDCUTFAIL,`
+   lwz		r3,cutFailAtomTC(RTOC)	# get cutFailAtom addr
+   lwz		r3,0(r3)
+   stw		r3,120(temp)			# store cutFailAtom in tcb procname
+   lwz		r12,80(temp)			# get cutb point from tcb
+   mr		r11,ce
+   bl		snip
+   b		Fail')
+
+define(NAMED_CUT,`
+   lwz		r3,cutcutAtomTC(RTOC)	# get cutcutAtom addr
+   lwz		r3,0(r3)
+   stw		r3,120(temp)			# store cutcutAtom in tcb procname
+   mr		r10,arg1
+   bl		deepcut
+   addi		ppc,ppc,1				# skip env size
+   b		Body')
+
+define(FAILEXIT,`
+   lwz		r3,cutFailAtomTC(RTOC)	# get cutFailAtom addr
+   lwz		r3,0(r3)
+   stw		r3,120(temp)			# store cutFailAtom in tcb procname
+   mr		r10,arg1
+   bl		deepcut
+   b		Fail')
+
+define(LABEL_ENV,`
+   mr		r12,arg2				# get symbol from arg2
+   cmpwi	r12,0
+   blt		labelenv_sym
+   DREFV(r12,r3,Fail)
+labelenv_sym:
+   SYMBOL(r12,Fail)
+   stw		r12,PNAME(ce)			# save symbol name in ce
+   b		Body')
+
+define(TESTT,`
+   mr		r12,$1
+   b		filter')
+
+define(TESTT_TCB,`
+   lbzu		r12,1(ppc)				# get arg number
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   addi		r3,temp,124				# start of args
+   lwzx		r12,r3,r12				# get arg
+   b		filter')
+
+define(TESTP,`
+   li		r12,$1
+   rlwinm	r12,r12,2,22,31			# multiply env offset by 4
+   lwzx		r12,ce,r12				# get env arg
+   b		filter')
+
+define(TESTP_TCB,`
+   lbzu		r12,1(ppc)				# get env offset
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   lwzx		r12,ce,r12				# get env arg
+   b		filter')
+
+define(POP_VALT,`
+   mr		r12,$1
+   b		popval')
+
+define(POP_VALT_TCB,`
+   lbzu		r12,1(ppc)				# get arg number
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   addi		r3,temp,124				# start of args
+   lwzx		r12,r3,r12				# get arg
+   b		popval')
+
+define(POP_VALP,`
+   li		r12,$1
+   rlwinm	r12,r12,2,22,31			# multiply env offset by 4
+   lwzx		r12,ce,r12				# get env arg
+   b		popval')
+
+define(POP_VALP_TCB,`
+   lbzu		r12,1(ppc)				# get env offset
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   lwzx		r12,ce,r12				# get env arg
+   b		popval')
+
+define(EVALT,`
+   mr		r10,ppc				# store ppc in case need to go to clause mode
+   mr		r12,$1
+   b		evala')
+
+define(EVALT_TCB,`
+   mr		r10,ppc				# store ppc in case need to go to clause mode
+   lbzu		r12,1(ppc)				# get arg number
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   addi		r3,temp,124				# start of args
+   lwzx		r12,r3,r12				# get arg
+   b		evala')
+
+define(EVALP,`
+   mr		r10,ppc				# store ppc in case need to go to clause mode
+   li		r12,$1
+   rlwinm	r12,r12,2,22,31			# multiply env offset by 4
+   lwzx		r12,ce,r12				# get env arg
+   b		evala')
+
+define(EVALP_TCB,`
+   mr		r10,ppc				# store ppc in case need to go to clause mode
+   lbzu		r12,1(ppc)				# get env offset
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   lwzx		r12,ce,r12				# get env arg
+   b		evala')
+
+define(POP_VART,`
+   POPNUM($1)
+   b		Popdn')
+
+define(POP_VART_TCB,`
+   POPNUM(r8)
+   lbzu		r12,1(ppc)				# get arg number
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   addi		r3,temp,124				# start of args
+   stwx		r8,r3,r12				# store arg
+   b		Popdn')
+
+define(POP_VARP,`
+   POPNUM(r8)
+   li		r12,$1
+   rlwinm	r12,r12,2,22,31			# multiply env offset by 4
+   stwx		r8,ce,r12				# store in env arg
+   b		Popdn')
+
+define(POP_VARP_TCB,`
+   POPNUM(r8)
+   lbzu		r12,1(ppc)				# get env offset
+   rlwinm	r12,r12,2,22,31			# multiply by 4
+   stwx		r8,ce,r12				# store in env arg
+   b		Popdn')
+
+define(CCUTSP,`
+   lwz		r3,cutcutAtomTC(RTOC)	# get cutcutAtom addr
+   lwz		r3,0(r3)
+   stw		r3,120(temp)			# store cutcutAtom in tcb procname
+   lwz		r12,CUTB(ce)			# get cutb of ce
+   lwz		r11,PRE(ce)				# get previous env
+   bl		snip
+   b		Body')
+
+define(ADD,`
+   DYADIC(`ADDLL',`fadd.')
+   b		InterpreterLoop')
+
+define(ADDLL,`
+   add		r5,r3,r4
+   stw		r5,0(sp)')
+
+define(SUBTRACT,`
+   DYADIC(`SUBLL',`fsub.')
+   b		InterpreterLoop')
+
+define(SUBLL,`
+   subf		r5,r3,r4
+   stw		r5,0(sp)')
+
+define(MULTIPLY,`
+   DYADIC(`MULTLL',`fmul.')
+   b		InterpreterLoop')
+
+define(MULTLL,`
+   mullw	r5,r3,r4
+   stw		r5,0(sp)')
+
+define(INT_DIVIDE,`
+   FLOAT
+   mtfsb0	5						# divide by 0 exception
+   mtfsb1	6						# dont cause execptions on inexact
+   DYADIC(`DIVII',`fdiv.')
+   b		int')
+
+define(DIVIDE,`
+   FLOAT
+   mtfsb0	5						# divide by 0 exception
+   mtfsb1	6						# dont cause execptions on inexact
+   DYADIC(`DIVII',`fdiv.')
+   FPCHECK
+   b		InterpreterLoop')
+
+define(DIVII,`
+   b		ArError					# division always done with floats')
+
+define(MOD,`
+   srwi		r3,stp,16				# must have 2 items on stack
+   cmpwi	r3,2
+   blt		Fail
+   andi.	r0,stp,0x0003			# both must be integers
+   bne		Fail
+   lwz		r3,-4(sp)				# get first int
+   lwz		r4,0(sp)				# get second integer
+   tweqi	r4,0x00000000			# if zero then trap
+   bla		0x00003200				# do mod operation (result in r4)
+   subi		sp,sp,4
+   stw		r4,0(sp)
+   clrlwi	r3,stp,16				# get float mask
+   srwi		r3,r3,1					# pop last item
+   clrrwi	stp,stp,16				# clear old mask
+   or		stp,stp,r3				# put in new mask
+   subis	stp,stp,0x0001			# decrement count
+   b		InterpreterLoop')
+
+define(POWER,`
+   srwi		r5,stp,16				# get stacksize
+   cmpwi	r5,2					# must have 2 items
+   blt		Fail
+   andi.	r0,stp,0x0001			# exponent must be an integer
+   bne		Fail
+   lwz		r3,-4(sp)				# get value
+   lwz		r6,0(sp)				# get exponent
+   subi		sp,sp,4
+   andi.	r0,stp,0x0002			# is value a float?
+   bne		float_arg
+   CONVERT_LONG(r3,fp1)				# place value into 1st float arg
+   CONVERT_LONG(r6,fp2)				# place exponent into 2nd float arg
+   bl		.pow{PR}				# do X**Y (result in fp1)
+   nop
+   CLEAR_FPERROR
+   fctiwz	fp1,fp1					# convert to integer
+   stfd		fp1,0(hp)				# store 8 byte value on heap (temporary)
+   lwz		r3,4(hp)
+   stw		r3,0(sp)				# place 4 byte int on stack
+   subis	stp,stp,0x0001			# decrement count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# drop last item
+   clrrwi	stp,stp,16				# clear old mask
+   or		stp,stp,r3				# insert new mask
+   b		InterpreterLoop
+float_arg:
+   subis	r5,r5,1
+   FPPUSH2(r5,fp1)					# place value into 1st arg
+   CONVERT_LONG(r6,fp2)				# place exponent into 2nd arg
+   bl		.pow{PR}				# do X**Y (result in fp1)
+   nop
+   CLEAR_FPERROR
+   FPPUSH(r5,fp1)					# place result into fp reg
+   subis	stp,stp,0x0001			# decrement count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# drop last item
+   clrrwi	stp,stp,16				# clear old mask
+   or		stp,stp,r3				# insert new mask
+   b		InterpreterLoop')
+
+define(INT,`
+   MONADI(RNDZERO)')
+
+define(FLOATING,`
+   FLOAT
+   b		InterpreterLoop')
+
+define(FLOOR,`
+   MONADI(RNDMINUSINF)')
+
+define(CEILING,`
+   MONADI(RNDPLUSINF)')
+
+define(ROUND,`
+   MONADI(RNDNEAREST)')
+
+define(MAX,`
+   SEL(ge)
+   b		InterpreterLoop')
+
+define(MIN,`
+   SEL(le)
+   b		InterpreterLoop')
+
+define(SQRT,`
+   MONADF_FUNC(sqrt)')
+
+define(ABS,`
+   andi.	r3,stp,0x0001			# float or int?
+   bne		abs_float
+   lwz		r3,0(sp)				# get integer
+   cmpwi	r3,0					# negative or positive
+   bge		InterpreterLoop
+   neg		r3,r3					# negate it
+   stw		r3,0(sp)
+   b		InterpreterLoop
+abs_float:
+   MONADF(`fabs.')')
+
+define(EXP,`
+   MONADF_FUNC(exp)')
+
+define(LOG,`
+   MONADF_FUNC(log)')
+   
+define(INCREMENT,`
+   andi.	r0,stp,0x0001			# int or float
+   bne		incr_float
+   lwz		r3,0(sp)				# get value from stack
+   addi		r3,r3,1					# increment value
+   stw		r3,0(sp)				# store value
+   b		InterpreterLoop
+incr_float:
+   li		r3,1					# increment value
+Fcrement:
+   CONVERT_LONG(r3,fp1)
+   FPOPX2(`fadd.',fp1,r3)
+   b		InterpreterLoop')
+
+define(DECREMENT,`
+   andi.	r0,stp,0x0001			# int or float
+   bne		decr_float
+   lwz		r3,0(sp)				# get value from stack
+   subi		r3,r3,1					# decrement value
+   stw		r3,0(sp)				# store value
+   b		InterpreterLoop
+decr_float:
+   li		r3,-1
+   b		incr_float')
+
+define(NEGATE,`
+   andi.	r3,stp,0x0001			# int or float?
+   bne		negate_float
+   lwz		r3,0(sp)				# get value
+   neg		r3,r3		   			# negate it
+   stw		r3,0(sp)
+   b		InterpreterLoop
+negate_float:
+   MONADF(`fneg.')')
+
+define(SIN,`
+   MONADF_FUNC(sin)')
+
+define(COS,`
+   MONADF_FUNC(cos)')
+
+define(TAN,`
+   MONADF_FUNC(tan)')
+
+define(ASIN,`
+   MONADF_FUNC(asin)')
+
+define(ACOS,`
+   MONADF_FUNC(acos)')
+
+define(ATAN,`
+   MONADF_FUNC(atan)')
+
+define(BIN_BUTNOT,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   lwz		r4,4(sp)
+   not		r4,r4					# ones complement of r4
+   and		r3,r3,r4				# and them together
+   stw		r3,0(sp)				# store result
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop')
+
+define(EQUAL,`
+   lwz		r3,escapeCountTC(RTOC)
+   lwz		r4,868(r3)				# increment count
+   addi		r4,r4,1
+   stw		r4,868(r3)
+   AREL(eq,Good,Fail)')
+
+define(EQUAL_LESS,`
+   lwz		r3,escapeCountTC(RTOC)
+   lwz		r4,872(r3)				# increment count
+   addi		r4,r4,1
+   stw		r4,872(r3)
+   AREL(le,Good,Fail)')
+
+define(EQUAL_GREATER,`
+   lwz		r3,escapeCountTC(RTOC)
+   lwz		r4,876(r3)				# increment count
+   addi		r4,r4,1
+   stw		r4,876(r3)
+   AREL(ge,Good,Fail)')
+
+define(LESS_THAN,`
+   lwz		r3,escapeCountTC(RTOC)
+   lwz		r4,880(r3)				# increment count
+   addi		r4,r4,1
+   stw		r4,880(r3)
+   AREL(lt,Good,Fail)')
+
+define(GREATER_THAN,`
+   lwz		r3,escapeCountTC(RTOC)
+   lwz		r4,884(r3)				# increment count
+   addi		r4,r4,1
+   stw		r4,884(r3)
+   AREL(gt,Good,Fail)')
+
+define(NOT_EQUAL,`
+   lwz		r3,escapeCountTC(RTOC)
+   lwz		r4,888(r3)				# increment count
+   addi		r4,r4,1
+   stw		r4,888(r3)
+   AREL(ne,Good,Fail)')
+
+define(BIN_BITSHIFT,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   lwz		r4,4(sp)
+   cmpwi	r4,0
+   blt		bitshift_right
+   beq		bitshift_ignore
+   slw		r3,r3,r4				# shift word left
+bitshift_cont:
+   stw		r3,0(sp)				# store result
+bitshift_ignore:
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop
+bitshift_right:
+   neg		r4,r4
+   srw		r3,r3,r4				# shift word right
+   b		bitshift_cont')
+   
+define(MAXINT,`
+   lis		r3,0x7FFF				# load max integer value
+   ori		r3,r3,0xFFFF
+   stwu		r3,4(sp)				# store on stack
+   addis	stp,stp,0x0001			# update state register
+   clrlwi	r3,stp,16				# get mask
+   slwi		r3,r3,1					# shift mask
+   clrrwi	stp,stp,16				# clear old mask
+   or		stp,stp,r3				# update mask
+   b		InterpreterLoop')
+
+define(MAXFLOAT,`
+   addis	stp,stp,0x0001			# update state register
+   clrlwi	r4,stp,16				# get mask
+   slwi		r4,r4,1					# shift mask
+   ori		r4,r4,0x0001			# insert float bit
+   clrrwi	stp,stp,16				# clear old mask
+   or		stp,stp,r4				# insert new mask
+   bl		.BNRP_getMaxFP{PR}		# max float placed in fp1
+   srwi		r3,stp,16				# get count
+   addi		sp,sp,4					# update stack
+   FPPUSH(r3,fp1)					# place result into proper fp reg
+   b		InterpreterLoop')
+
+define(PI,`
+   li		r3,-1					# acos(-1) = pi
+   CONVERT_LONG(r3,fp1)				
+   mtfsb0	0						# clear error
+   bl		.acos{PR}					# do operation
+   CLEAR_FPERROR
+   addis	stp,stp,0x0001			# increment stack size
+   addi		sp,sp,4					# increment stack
+   srwi		r3,stp,16				# get stack size
+   FPPUSH(r3,fp1)					# place result into proper fp reg
+   clrlwi	r4,stp,16				# get mask
+   slwi		r4,r4,1					# shift mask
+   clrrwi	stp,stp,16				# clear old mask
+   ori		r4,r4,0x0001			# insert float bit
+   or		stp,stp,r4				# tag result as a float
+   b		InterpreterLoop')
+   
+define(CPUTIME,`
+   bl		.getCPUTime{PR}			# get the cpu time
+   stwu		r3,4(sp)				# place in stack
+   addis	stp,stp,0x0001			# update state register
+   clrlwi	r3,stp,16				# get mask
+   slwi		r3,r3,1					# shift mask
+   clrrwi	stp,stp,16				# clear old mask
+   or		stp,stp,r3				# update mask
+   b		InterpreterLoop')
+
+define(BIN_BITAND,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   lwz		r4,4(sp)
+   and		r3,r3,r4				# and them together
+   stw		r3,0(sp)				# store result
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop')
+
+define(BIN_BITOR,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   lwz		r4,4(sp)
+   or		r3,r3,r4				# or them together
+   stw		r3,0(sp)				# store result
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop')
+
+define(BIN_BITEQ,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   lwz		r4,4(sp)
+   xor		r3,r3,r4				# xor them together
+   not		r3,r3					# ones complement
+   stw		r3,0(sp)				# store result
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop')
+
+define(UNARY_NOT,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,1
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0001
+   bne		Fail					# no floats allowed
+   lwz		r3,0(sp)
+   cmpwi	r3,0
+   beq		unarynot_zero
+   cmpwi	r3,1
+   beq		unarynot_one
+   b		Fail
+unarynot_zero:
+   li		r3,1
+   b		unarynot_cont
+unarynot_one:
+   li		r3,0
+unarynot_cont:
+   stw		r3,0(sp)				# store result
+   b		InterpreterLoop')
+
+define(BINARY_AND,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   cmpwi	r3,0					# both args must be either 0 or 1
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   lwz		r4,4(sp)
+   cmpwi	r4,0
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   and		r3,r3,r4				# and them together
+   stw		r3,0(sp)				# store result
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop')
+
+define(BINARY_OR,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   cmpwi	r3,0					# both args must be either 0 or 1
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   lwz		r4,4(sp)
+   cmpwi	r4,0
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   or		r3,r3,r4				# or them together
+   stw		r3,0(sp)				# store result
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop')
+
+define(BINARY_XOR,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   cmpwi	r3,0					# both args must be either 0 or 1
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   lwz		r4,4(sp)
+   cmpwi	r4,0
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   xor		r3,r3,r4				# xor them together
+   stw		r3,0(sp)				# store result
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop')
+
+define(BINARY_COMPARE,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   cmpwi	r3,0					# both args must be either 0 or 1
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   lwz		r4,4(sp)
+   cmpwi	r4,0
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   cmpw		r3,r4
+   bgt		binaryComp_zero
+   li		r3,1
+binaryComp_cont:		
+   stw		r3,0(sp)				# store result
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop
+binaryComp_zero:
+   li		r3,0
+   b		binaryComp_cont')
+
+define(REL_EQUAL,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   cmpwi	r3,0					# both args must be either 0 or 1
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   lwz		r4,4(sp)
+   cmpwi	r4,0
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   cmpw		r3,r4
+   bne		relequal_zero
+   li		r3,1
+relequal_cont:		
+   stw		r3,0(sp)				# store result
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop
+relequal_zero:
+   li		r3,0
+   b		relequal_cont')
+
+define(REL_GREATER,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   cmpwi	r3,0					# both args must be either 0 or 1
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   lwz		r4,4(sp)
+   cmpwi	r4,0
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   cmpw		r3,r4
+   ble		relgreater_zero
+   li		r3,1
+relgreater_cont:		
+   stw		r3,0(sp)				# store result
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop
+relgreater_zero:
+   li		r3,0
+   b		relgreater_cont')
+
+define(REL_LESS,`
+   srwi		r3,stp,16				# get count?
+   cmpwi	r3,2
+   blt		Fail					# not enough elements on stack   
+   andi.	r0,stp,0x0003
+   bne		Fail					# no floats allowed
+   lwzu		r3,-4(sp)
+   cmpwi	r3,0					# both args must be either 0 or 1
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   lwz		r4,4(sp)
+   cmpwi	r4,0
+   blt		Fail
+   cmpwi	r3,1
+   bgt		Fail
+   cmpw		r3,r4
+   bge		relless_zero
+   li		r3,1
+relless_cont:		
+   stw		r3,0(sp)				# store result
+   subis	stp,stp,0x0001			# decrement stack count
+   clrlwi	r3,stp,16				# get mask
+   srwi		r3,r3,1					# remove mask for last item
+   clrrwi	stp,stp,16
+   or		stp,stp,r3
+   b		InterpreterLoop
+relless_zero:
+   li		r3,0
+   b		relless_cont')
+
+define(DCUT_EXEC,`
+   lwz		r3,escapeCountTC(RTOC)
+   lwz		r4,920(r3)				# get dcut_exec count
+   addi		r4,r4,1
+   stw		r4,920(r3)				# update count
+   lwz		r12,80(temp)				# get cutb from tcb
+   cmpw		lcp,r12
+   bge		dcutexec_check
+   bl		ebcut
+dcutexec_check:
+   lwz		r3,BNRP_gcFlagTC(RTOC)		# get BNRP_gcFlag addr
+   lwz		r3,0(r3)
+   cmpwi	r3,0
+   beq		NewExec
+dcutexec_chksz:
+   subf		r11,bh,hp				# subtract critical hp from hp
+   cmpw		r11,r3					# compare r11 against BNRP_gcFlag value
+   ble		NewExec					# not worth doing garbage collection
+   lwz		r3,24(lcp)				# get choicepoint ce value
+   cmpw		r3,ce
+   bne		NewExec					# wrong environment
+   lwz		r3,28(lcp)				# get choicepoint cp value
+   cmpw		cp,r3
+   bne		NewExec					# wrong call
+   lbz		r3,1(ppc)				# get arity of call
+   extsb	r3,r3					# sign extend arity byte
+   stw		r3,124(temp)			# store call arity in tcb
+   SAVEARGS
+   stw		hp,88(temp)				# save hp
+   mr		r3,lcp					# load lcp into first arg
+   addi		r4,temp,88				# addr of hp in second arg
+   mr		r5,te					# load te into 3rd arg
+   addi		r6,temp,124				# load addr of regs into 4th arg
+   bl		.BNRP_gc_proceed{PR}
+   LOADARGS
+   lwz		hp,88(temp)				# reload hp
+   b		NewExec')
+
+define(PUT_VART,`
+   clrlwi	r12,hp,3				# make hp a var
+   mr		$1,r12					# store new var in args
+   mr		$2,r12
+   stw		r12,0(hp)				# store var in heap
+   li		r3,0
+   addi		hp,hp,4   
+   stw		r3,0(hp)				# clear in case of constraints
+   b		Body')		
+
+define(PUT_VART_ARG1,`
+   lbzu		r11,1(ppc)				# get addr of arg
+   rlwinm	r11,r11,2,22,31			# multiply by 4
+   clrlwi	r12,hp,3				# make hp a var
+   mr		$1,r12					# store in first arg
+   addi		r10,temp,124			# start of args in tcb
+   stwx		r12,r10,r11				# store arg in tcb
+   li		r3,0
+   stw		r12,0(hp)				# store new var in heap
+   addi		hp,hp,4
+   stw		r3,0(hp)				# clear in case of constraints
+   b		Body')
+
+define(PUT_VART_TCB,`
+   lbzu		r11,1(ppc)				# get addr of first arg
+   lbzu		r10,1(ppc)				# get addr of second arg
+   rlwinm	r11,r11,2,22,31			# multiply by 4
+   rlwinm	r10,r10,2,22,31
+   clrlwi	r12,hp,3				# make hp a var
+   addi		r9,temp,124				# start of args in tcb
+   stwx		r12,r9,r11				# store new var in first arg
+   stwx		r12,r9,r10				# store new var in second arg
+   li		r3,0
+   stw		r12,0(hp)				# store new var in heap
+   addi		hp,hp,4
+   stw		r3,0(hp)				# clear in case of constraints
+   b		Body')

@@ -1,0 +1,654 @@
+#
+#  $Header: /disc9/sniff/repository/BNRProlog/source/RCS/HSCbodyEscClMacros.incl,v 1.3 1998/02/13 11:02:49 harrisj Exp $
+#
+#  $Log: HSCbodyEscClMacros.incl,v $
+# Revision 1.3  1998/02/13  11:02:49  harrisj
+# Decall: must handle calls with zero arguements as a special case.
+#
+# Revision 1.2  1998/01/21  07:52:55  harrisj
+# Changed some opcodes to be unary ops instead of binary ops.
+# Fixed exec to not update ppc
+#
+# Revision 1.1  1997/12/22  17:01:10  harrisj
+# Added support for HSC and to build HSC and non-HSC BNRP
+#
+#
+#
+
+
+define(CLAUSESUPPORT,`
+cpopvar:
+   stw		r12,0(hp)		# make a var in heap
+   addi		hp,hp,4
+   b		cppvaln
+cppvalv:
+   UNBOUND(r12,r11,cppvaln)
+   b		cppvaln
+cpopval:
+   cmpwi	r12,0
+   bgt		cppvalv			# was a variable
+cppvaln:
+   lwz		r10,0(sp)		# get argument
+   subi		sp,sp,4
+   stwu		r12,4(sp)		# push var onto stack
+   stwu		r10,4(sp)		# push arg back onto stack
+   lwz		r12,isAtomTC(RTOC)
+   lwz		r12,0(r12)		# get isAtom value
+#  Rel2 -  clause mode: r12 is symbol, construct structure  using top 2 items on stack
+#  and treat as if called
+Rel2:
+   lwz		r3,inClauseTC(RTOC)	# in clause or not
+   lhz		r3,0(r3)
+   cmpwi	r3,0			# if doing clause
+   beq		Funccall		# if not do function reduction
+   clrlwi	r10,hp,3		# clear tag
+   oris		r10,r10,STRUCTTAG	# make a structure
+   lis		r3,STRUCTHEADER
+   addi		r3,r3,3			# structure of arity 3
+   stw		r3,0(hp)		# place on heap
+   stw		r12,4(hp)		# place functor on heap
+   addi		hp,hp,8
+   lwzu		r3,-4(sp)		# get first arg
+   stw		r3,0(hp)		# place on heap
+   lwz		r3,4(sp)		# get second arg
+   stw		r3,4(hp)		# place second arg on heap
+   li		r3,0
+   stw		r3,8(hp)		# end structure
+   addi		hp,hp,12		# update heap end
+   lwz		r4,clauseListTC(RTOC)	# get clauseList
+   lwz		r5,0(r4)		
+   stw		hp,0(r5)		# points to current heap top
+   stw		r10,0(hp)		# append new call
+   addi		hp,hp,4
+   stw		hp,0(r4)		# update last call
+   stw		r3,0(hp)		# space for tailvar
+   addi		hp,hp,4
+   addi		ppc,ppc,1
+   subi		sp,sp,4
+   b		Body
+IncDec:		# r12 is + or -, used to undo increment, decrement opcodes
+   lis		r3,INTTAG		# make the integer term 1
+   addi		r3,r3,1
+   stwu		r3,4(sp)		# store term on stack
+#  Cons2 -   r12 is symbol, construct structure  using top 2 items on stack
+Cons2:
+   clrlwi	r10,hp,3		# clear tag
+   oris		r10,r10,STRUCTTAG	# make a structure
+   lis		r3,STRUCTHEADER
+   addi		r3,r3,3			# structure of arity 3
+   stw		r3,0(hp)		# place on heap
+   stw		r12,4(hp)		# place functor on heap
+   lwzu		r3,-4(sp)		# get first arg
+   stw		r3,8(hp)		# place on heap
+   lwz		r3,4(sp)		# get second arg
+   stw		r3,12(hp)		# place second arg on heap
+   li		r3,0
+   stw		r3,16(hp)		# end structure
+   addi		hp,hp,20		# update heap end
+   stw		r10,0(sp)		# push result
+   b		InterpreterLoop
+#  Cons1 -   r12 is symbol, construct structure using top item on stack
+Cons1:
+   clrlwi	r10,hp,3		# clear tag
+   oris		r10,r10,STRUCTTAG	# make a structure
+   lis		r3,STRUCTHEADER
+   addi		r3,r3,2			# structure of arity 2
+   stw		r3,0(hp)		# place on heap
+   stw		r12,4(hp)		# place functor on heap
+   lwz		r3,0(sp)		# get arg from stack
+   stw		r3,8(hp)		# store arg on stack
+   li		r3,0
+   stw		r3,12(hp)		# end structure
+   addi		hp,hp,16		# update heap end
+   stw		r10,0(sp)		# push result
+   b		InterpreterLoop
+# call1 : construct functor/1 on heap and "call " it in clause mode
+# princ. functor in r12, arg on stack - same as cons1 but returns to body mode
+Call1:
+   clrlwi	r12,hp,3			# clear tag
+   oris		r12,r12,STRUCTTAG	# make a structure
+   lis		r3,STRUCTHEADER
+   addi		r3,r3,2			# arity 1
+   stw		r3,0(hp)
+   stw		r10,4(hp)		# place functor on heap
+   lwz		r3,0(sp)		# get argument
+   stw		r3,8(hp)		# place on heap
+   subi		sp,sp,4
+   li		r3,0
+   stw		r3,12(hp)		# endseq
+   addi		hp,hp,16		# increment heap correctly
+   b		Addcall
+#  esymskp used for cut,  etc.
+esymskp:
+   addi		ppc,ppc,1		# skip env size (!,ccut)
+   b		Addcall
+#  esymf used for    fail ,failexit (since not followed by any opcode)
+esymf:
+   mr		ppc,cp			# return to return address
+   lwz		r3,inClauseTC(RTOC)	# get inClause addr
+   li		r4,0
+   sth		r4,0(r3)		# make sure clause mode is disabled
+   b		Addcall
+#                        meta calls and execs
+CMetaexec:
+   lwz		r3,inClauseTC(RTOC)
+   li		r4,0
+   sth		r4,0(r3)		# disable inClause
+CMetacall:
+   addi		ppc,ppc,1		# skip env size
+   mr		r12,arg1		# place functor in r12
+#               addcall - adds a call structure to body list
+#               call structure is in r12
+Addcall:
+   lwz		r3,clauseListTC(RTOC)	# get clauseList addr
+   lwz		r4,0(r3)		# get clauseList value
+   stw		hp,0(r4)		# make a tailvar pointing to top of heap
+   stw		r12,0(hp)		# place symbol on heap
+   addi		hp,hp,4
+   stw		hp,0(r3)		# update clauseList
+   li		r3,0
+   stw		r3,0(hp)		# space for tailvar
+   addi		hp,hp,4			# increment heap
+   b		Body
+oneskp:
+   addi		ppc,ppc,1		# skip env size
+onearg:
+   li		r11,1			# arity is 1
+   b		Decall
+CNewCall:
+   lbzu		r11,1(ppc)		# get arity of call
+   extsb	r11,r11			# sign extend it
+   addi		ppc,ppc,4		# word align it
+   clrrwi	ppc,ppc,2
+   lwz		r10,0(ppc)		# get principle functor
+   addi		ppc,ppc,4		# increment ppc properly
+   b		Decall
+CNewExec:
+   lbzu		r11,1(ppc)		# get arity of call
+   extsb	r11,r11			# sign extend it
+   addi		ppc,ppc,4		# word align it
+   clrrwi	ppc,ppc,2
+   lwz		r10,0(ppc)		# get principle functor
+   mr		ppc,cp			# return
+#   addi		ppc,ppc,1
+   lwz		r3,inClauseTC(RTOC)
+   li		r4,0
+   sth		r4,0(r3)		# clear inClause
+# Decall   r10 is princ functor, r11 is arity on entry to decall, args in usual places
+Decall:
+   SAVEARGS
+   cmpwi	r11,0			# special case for zero args
+   bne		Decall2
+   mr		r12,r10
+   b		Addcall
+Decall2:
+   clrlwi	r12,hp,3		# clear tag
+   oris		r12,r12,STRUCTTAG	# make structure
+   lis		r9,STRUCTHEADER
+   cmpwi	r11,0			# check sign of arity
+   bge		decall_arity
+   subi		r8,r11,1		# subtract one for functor
+   b		decall_pfunc
+decall_arity:
+   addi		r8,r11,1		# add 1 for functor
+decall_pfunc:
+   clrlwi	r8,r8,16		# clear top half word of arity
+   or		r9,r9,r8		# place arity in struct header
+   stw		r9,0(hp)		# place struct header on heap
+   stw		r10,4(hp)		# place functor on heap
+   addi		hp,hp,4
+   addi		stp,temp,124		# start of args
+   cmpwi	r11,0
+   beq		decall_done		# nothing to do
+   bgt		decall_pos
+   neg		r11,r11			# make arity positive
+   rlwinm	r8,r11,2,0,31	# multiply by 4
+   add		r8,stp,r8		# addr of last arg (a list containing ubound tvar)
+   lwz		r7,0(r8)		# list
+   clrlwi	r7,r7,2			# clear top 2 bits
+   stw		r7,0(r8)		# now tvar
+decall_pos:
+   mtspr	CTR,r11			# copy number of args to count register for looping
+decall_loop:
+   lwzu		r8,4(stp)		# get first arg
+   stwu		r8,4(hp)		# place on heap
+   bdnz		decall_loop
+decall_done:
+   li		r3,0
+   stw		r3,4(hp)		# endseq
+   addi		hp,hp,8
+   b		Addcall
+cisvar:
+   stwu		r10,4(sp)		# move argument to stack
+   lwz		r10,varAtomTC(RTOC)
+   lwz		r10,0(r10)		# varAtom
+   b		Call1
+cistvar:
+   clrlwi	r10,r10,1		# clear sgn bit (list -> tvar)
+   stwu		r10,4(sp)		# move argument to stack
+   lwz		r10,tailvarAtomTC(RTOC)
+   lwz		r10,0(r10)		# tailvarAtom
+   b		Call1
+cfilter:
+   stwu		r10,4(sp)		# move arg to stack
+   # mask - bits arranged as :   [_, _, _, flt, int, sym, str, list]
+   #               $mask( float,    10).
+   #               $mask( integer,  08).
+   #               $mask( symbol,   04).
+   #               $mask( structure,02).
+   #               $mask( list,     01).
+   #               $mask( compound, 03).
+   #               $mask( numeric,  18).
+   #               $mask( number,   18).
+   #               $mask( nonvar,   1F).
+   lbzu		r11,1(ppc)		# decode filter
+   rlwinm	r11,r11,2,22,31		# multiply by 4
+   lwz		r10,BNRP_filterNamesTC(RTOC)
+   lwzx		r10,r10,r11		# get symbol
+   b		Call1')
+
+define(CBINARY_OP,`
+   lwz		r12,$1TC(RTOC)
+   lwz		r12,0(r12)		# get atom value
+   b		Cons2')
+
+define(CUNARY_OP,`
+   lwz		r12,$1TC(RTOC)
+   lwz		r12,0(r12)		# get atom value
+   b		Cons1')
+
+define(CCOMPARE_OP,`
+   lwz		r12,$1TC(RTOC)
+   lwz		r12,0(r12)		# get atom value
+   b		Rel2')
+
+define(CLAUSEBYTE,`
+   lwz		r12,$1TC(RTOC)		# get atom addr
+   lwz		r12,0(r12)		# get atom value
+   b		$2')
+   
+define(CL_ECUT,`
+   CLAUSEBYTE(cutAtom,esymskp)')
+
+define(CL_DCUT,`
+   CLAUSEBYTE(cutAtom,Addcall)')
+
+define(CL_EVAL_CONS,`
+   addi		ppc,ppc,4		# word align ppc
+   clrrwi	ppc,ppc,2
+   lwz		r12,0(ppc)		# get constant
+   addi		ppc,ppc,3		# increment ppc correctly
+   stwu		r12,4(sp)		# place on stack
+   b		InterpreterLoop')
+
+define(CL_CALLINDIRECT,`
+   b		CMetacall')
+
+define(CL_CALL,`
+   b		CNewCall')
+
+define(CL_EXECINDIRECT,`
+   b		CMetaexec')
+
+define(CL_EXEC,`
+   b		CNewExec')
+
+define(CL_CLAUSE,`
+   lwz		r12,clauseAtomTC(RTOC)
+   lwz		r12,0(r12)			# clauseAtom value
+   li		r11,3				# arity 3
+   addi		ppc,ppc,1			# skip env size
+   b		Decall')
+
+define(CL_EXECADDR,`
+   b		Oerror')
+
+define(CL_VART,`
+   mr		r10,$1
+   b		cisvar')
+
+define(CL_VART_TCB,`
+   lbzu		r3,1(ppc)		# get arg number
+   rlwinm	r3,r3,2,0,31		# multiply by 4
+   addi		r10,temp,124
+   lwzx		r10,r10,r3		# get arg
+   b		cisvar')
+
+define(CL_VARP,`
+   li		r10,$1
+   rlwinm	r10,r10,2,0,31		# multiply by 4
+   lwzx		r10,ce,r10		# get env arg
+   b		cisvar')
+
+define(CL_VARP_TCB,`
+   lbzu		r10,1(ppc)		# get env offset
+   rlwinm	r10,r10,2,0,31		# multiply by 4
+   lwzx		r10,ce,r10		# get env arg
+   b		cisvar')
+
+define(CL_TVART,`
+   mr		r10,$1
+   b		cistvar')
+
+define(CL_TVART_TCB,`
+   lbzu		r3,1(ppc)		# get arg number
+   rlwinm	r3,r3,2,0,31		# multiply by 4
+   addi		r10,temp,124
+   lwzx		r10,r10,r3		# get arg
+   b		cistvar')
+
+define(CL_TVARP,`
+   li		r10,$1
+   rlwinm	r10,r10,2,0,31		# multiply by 4
+   lwzx		r10,ce,r10		# get env arg
+   b		cistvar')
+
+define(CL_TVARP_TCB,`
+   lbzu		r10,1(ppc)		# get env offset
+   rlwinm	r10,r10,2,0,31		# multiply by 4
+   lwzx		r10,ce,r10		# get env arg
+   b		cistvar')
+
+define(CL_FAIL,`
+   CLAUSEBYTE(failAtom,esymf)')
+
+define(CL_CCUT,`
+   CLAUSEBYTE(cutcutAtom,esymskp)')
+
+define(CL_CDCUT,`
+   CLAUSEBYTE(cutcutAtom,Addcall)')
+
+define(CL_CCUTFAIL,`
+   CLAUSEBYTE(cutFailAtom,esymf)')
+
+define(CL_CDCUTFAIL,`
+   CLAUSEBYTE(cutFailAtom,esymf)')
+
+define(CL_CUT,`
+   CLAUSEBYTE(cutcutAtom,oneskp)')
+
+define(CL_FAILEXIT,`
+   CLAUSEBYTE(cutFailAtom,onearg)')
+
+define(CL_TESTT,`
+   mr		r10,$1
+   b		cfilter')
+
+define(CL_TESTT_TCB,`
+   lbzu		r3,1(ppc)		# get arg number
+   rlwinm	r3,r3,2,0,31		# multiply by 4
+   addi		r10,temp,124
+   lwzx		r10,r10,r3		# get arg
+   b		cfilter')
+
+define(CL_TESTP,`
+   li		r10,$1
+   rlwinm	r10,r10,2,0,31		# multiply by 4
+   lwzx		r10,ce,r10		# get env arg
+   b		cfilter')
+
+define(CL_TESTP_TCB,`
+   lbzu		r10,1(ppc)		# get env offset
+   rlwinm	r10,r10,2,0,31		# multiply by 4
+   lwzx		r10,ce,r10		# get env arg
+   b		cfilter')
+
+define(CL_POP_VALT,`
+   mr		r12,$1
+   b		cpopval')
+
+define(CL_POP_VALT_TCB,`
+   lbzu		r12,1(ppc)		# get arg number
+   rlwinm	r12,r12,2,0,31		# multiply by 4
+   addi		r4,temp,124
+   lwzx		r12,r4,r12		# get arg
+   b		cpopval')
+
+define(CL_POP_VALP,`
+   li		r12,$1			# get env offset
+   rlwinm	r12,r12,2,0,31		# multiply by 4
+   lwzx		r12,ce,r12		# get env arg
+   b		cpopval')
+
+define(CL_POP_VALP_TCB,`
+   lbzu		r12,1(ppc)		# get env offset
+   rlwinm	r12,r12,2,0,31		# multiply by 4
+   lwzx		r12,ce,r12		# get env arg
+   b		cpopval')
+
+define(CL_EVALT,`
+   stwu		$1,4(sp)		# store variable in stack
+   b		InterpreterLoop')
+
+define(CL_EVALT_TCB,`
+   lbzu		r3,1(ppc)		# get arg number
+   rlwinm	r3,r3,2,0,31		# multiply by 4
+   addi		r4,temp,124
+   lwzx		r4,r4,r3		# get arg
+   stwu		r4,4(sp)
+   b		InterpreterLoop')
+
+define(CL_EVALP,`
+   li		r3,$1			# get env offset
+   rlwinm	r3,r3,2,0,31		# multiply by 4
+   lwzx		r3,ce,r3		# load env variable
+   stwu		r3,4(sp)		# store env variable on stack
+   b		InterpreterLoop')
+
+define(CL_EVALP_TCB,`
+   lbzu		r3,1(ppc)		# get arg number
+   rlwinm	r3,r3,2,0,31		# multiply by 4
+   lwzx		r3,ce,r3		# load env variable
+   stwu		r3,4(sp)		# store env variable on stack
+   b		InterpreterLoop')
+
+define(CL_POP_VART,`
+   clrlwi	r12,hp,3			# make hp into var
+   mr		$1,r12			# store var in arg
+   b		cpopvar')
+
+define(CL_POP_VART_TCB,`
+   lbzu		r3,1(ppc)		# get arg number
+   clrlwi	r12,hp,3			# make hp into var
+   rlwinm	r3,r3,2,0,31		# multiply by 4
+   addi		r4,temp,124
+   stwx		r12,r4,r3		# store var in args
+   b		cpopvar')
+
+define(CL_POP_VARP,`
+   li		r3,$1			# get env offset
+   rlwinm	r3,r3,2,0,31		# multiply by 4
+   clrlwi	r12,hp,3			# make hp into var
+   stwx		r12,ce,r3		# store var in env
+   b		cpopvar')
+
+define(CL_POP_VARP_TCB,`
+   lbzu		r3,1(ppc)		# get env offset
+   clrlwi	r12,hp,3			# make hp into var
+   rlwinm	r3,r3,2,0,31		# multiply by 4
+   stwx		r12,ce,r3		# store var in env
+   b		cpopvar')
+
+define(CL_CCUTSP,`
+   CLAUSEBYTE(cutcutAtom,Addcall)')
+
+
+define(CL_ADD,`
+   CBINARY_OP(plusAtom)')
+
+define(CL_SUBTRACT,`
+   CBINARY_OP(minusAtom)')
+
+define(CL_MULTIPLY,`
+   CBINARY_OP(starAtom)')
+
+define(CL_INT_DIVIDE,`
+   CBINARY_OP(slashslashAtom)')
+
+define(CL_DIVIDE,`
+   CBINARY_OP(slashAtom)')
+
+define(CL_MOD,`
+   CBINARY_OP(modAtom)')
+
+define(CL_POWER,`
+   CBINARY_OP(starstarAtom)')
+
+define(CL_INT,`
+   CUNARY_OP(intAtom)')
+
+define(CL_FLOATING,`
+   CUNARY_OP(floatAtom)')
+
+define(CL_FLOOR,`
+   CUNARY_OP(floorAtom)')
+
+define(CL_CEILING,`
+   CUNARY_OP(ceilAtom)')
+
+define(CL_ROUND,`
+   CUNARY_OP(roundAtom)')
+
+define(CL_MAX,`
+   CBINARY_OP(maxAtom)')
+
+define(CL_MIN,`
+   CBINARY_OP(minAtom)')
+
+define(CL_SQRT,`
+   CUNARY_OP(sqrtAtom)')
+
+define(CL_ABS,`
+   CUNARY_OP(absAtom)')
+
+define(CL_EXP,`
+   CUNARY_OP(expAtom)')
+
+define(CL_LOG,`
+   CUNARY_OP(lnAtom)')
+
+define(CL_INCREMENT,`
+   lwz		r12,plusAtomTC(RTOC)
+   lwz		r12,0(r12)
+   b		IncDec')
+
+define(CL_DECREMENT,`
+   lwz		r12,minusAtomTC(RTOC)
+   lwz		r12,0(r12)
+   b		IncDec')
+
+define(CL_NEGATE,`
+   CUNARY_OP(minusAtom)')
+
+define(CL_SIN,`
+   CUNARY_OP(sinAtom)')
+
+define(CL_COS,`
+   CUNARY_OP(cosAtom)')
+
+define(CL_TAN,`
+   CUNARY_OP(tanAtom)')
+
+define(CL_ASIN,`
+   CUNARY_OP(asinAtom)')
+
+define(CL_ACOS,`
+   CUNARY_OP(acosAtom)')
+
+define(CL_ATAN,`
+   CUNARY_OP(atanAtom)')
+
+define(CL_BIN_BUTNOT,`
+   CBINARY_OP(butnotAtom)')
+
+define(CL_EQUAL,`
+   CCOMPARE_OP(eqAtom)')
+
+define(CL_EQUAL_LESS,`
+   CCOMPARE_OP(leAtom)')
+
+define(CL_EQUAL_GREATER,`
+   CCOMPARE_OP(geAtom)')
+
+define(CL_LESS_THAN,`
+   CCOMPARE_OP(ltAtom)')
+
+define(CL_GREATER_THAN,`
+   CCOMPARE_OP(gtAtom)')
+
+define(CL_NOT_EQUAL,`
+   CCOMPARE_OP(neAtom)')
+
+define(CL_BIN_BITSHIFT,`
+   CBINARY_OP(bitshiftAtom)')
+
+define(CL_DCUT_EXEC,`
+   lwz		r3,clauseListTC(RTOC)
+   lwz		r4,0(r3)		# get clauselist value
+   stw		hp,0(r4)		# store tvar into clauseList
+   lwz		r4,cutAtomTC(RTOC)
+   lwz		r4,0(r4)		# cutAtom value
+   stw		r4,0(hp)		# place on heap
+   addi		hp,hp,4
+   stw		hp,0(r3)		# update clauseList
+   li		r3,0
+   stw		r3,0(hp)		# space for tailvar
+   addi		hp,hp,4
+   b		CNewExec')
+   
+define(CL_MAXINT,`
+   lwz		r3,maxintAtomTC(RTOC)
+   lwz		r3,0(r3)
+   stwu		r3,4(sp)
+   b		InterpreterLoop')
+
+define(CL_MAXFLOAT,`
+   lwz		r3,maxfloatAtomTC(RTOC)
+   lwz		r3,0(r3)
+   stwu		r3,4(sp)
+   b		InterpreterLoop')
+
+define(CL_PI,`
+   lwz		r3,piAtomTC(RTOC)
+   lwz		r3,0(r3)
+   stwu		r3,4(sp)
+   b		InterpreterLoop')
+
+define(CL_CPUTIME,`
+   lwz		r3,cputimeAtomTC(RTOC)
+   lwz		r3,0(r3)
+   stwu		r3,4(sp)
+   b		InterpreterLoop')
+
+define(CL_BIN_BITAND,`
+   CBINARY_OP(bitandAtom)')
+
+define(CL_BIN_BITOR,`
+   CBINARY_OP(bitorAtom)')
+
+define(CL_BIN_BITEQ,`
+   CBINARY_OP(biteqAtom)')
+
+define(CL_UNARY_NOT,`
+   CUNARY_OP(boolnotAtom)')
+
+define(CL_BINARY_AND,`
+   CBINARY_OP(boolandAtom)')
+
+define(CL_BINARY_OR,`
+   CBINARY_OP(boolorAtom)')
+
+define(CL_BINARY_XOR,`
+   CBINARY_OP(boolxorAtom)')
+
+define(CL_BINARY_COMPARE,`
+   CBINARY_OP(ifAtom)')
+
+define(CL_REL_EQUAL,`
+   CBINARY_OP(eqAtom)')
+
+define(CL_REL_GREATER,`
+   CBINARY_OP(gtAtom)')
+
+define(CL_REL_LESS,`
+   CBINARY_OP(ltAtom)')

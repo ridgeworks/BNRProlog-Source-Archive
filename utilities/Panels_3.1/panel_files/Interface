@@ -1,0 +1,686 @@
+
+Panels 3.1 Interface:
+---------------------
+
+A panel structure is defined by a fact of the form:
+
+    panel_definition(Name,                  % a symbol naming the panel or panel template
+                     pos(X,Y),              % default position of the panel
+                     size(W,H),             % size of the panel
+                     options(style(Style),         % panel style, one of document, dialog,
+                                                   %   rectangle, shadow, rounded, or motif
+                             background(Pat,Col),  % background pattern and colour
+                             picture(File,Id),     % file name and resource Id of 
+                                                   %   background picture
+                             lock(Lock),           % disable panel/editing if Lock=on
+                             dialog(Dial)          % modal dialog if Dial=on
+                             grid(GX,GY)           % grid pitch (in pixels) 
+                            )                      %   in X and Y direction
+                     Itemlist..             % sequence of items in the panel
+                    )                       %   (see new class structures)
+
+    The operational behaviour of the panel can be affected by the 'lock' option (disables
+object selection for editing, or resizing of the panel) and by the 'dialog' option (disables
+switching the active window via mouse selection; in the Prolog environment, window selection
+from the 'Windows' menu is still operational.)  The 'background' and 'picture' options are
+used to place a background 'under' any of the other panel objects.  Transparent objects
+allow the background pattern and colour to show through; transparent buttons with no label
+or icon (equivalent of a hotspot) allow pictures to show through.  The grid is used by the
+panel editor to help the user line up objects on the panel.
+
+    The panel defintion can be used as is, or as a template for instances of the panel.
+Such instances have a name of the form Name:Instance, where Name matches the Name found in
+the panel_definition clause, and instance is a Prolog term assigned by the application when the
+panel is created (opened).  Instances cannot be saved as a panel definition; however, they 
+can be renamed to a symbol, and then saved. 
+
+The semantics for this structure are supported mainly through rules (panel_event)
+which are executed when certain events occur, and rules which query and modify
+the state of items in the panel:
+
+    panel_event(Panel,Event,Item)    -- responding to user actions, you will
+                                        always need event handlers to animate
+                                        your panels.    
+    
+    panel_view(Panel,Item_access..)  -- read or write values into the panel, you
+                                        will need this call in your event handlers
+                                        to act on the panel.  
+
+
+panel_event(Panel, Event, Item)
+-------------------------------
+
+    Panel   =   the panel's name (e.g., fred  or  fred:42).
+    Event   =   short form is select, click, etc (listed below)
+            =   long form is select(X,Y), click(X,Y), etc (listed below)
+            =   alternative long form if any modifier keys are depressed:
+                    Event(X,Y,Ctrl,Opt,Shft,Cmnd) (1=depressed, otherwise 0)
+    Item    =   short form is Class(Name)
+            =   long form is Class(name(Name),place(XL,YT,XR,YB),Properties..)  
+                    
+    where:   Class = button, field, etc... (the items class)
+             Name  = the internal identifier for a panel item, e.g., fred, sam(2)
+             place(XL,YT,XR,YB) = 
+                location of the object as rectangle
+             Properties.. = 
+                a sequence of class specific properties, each of the form Prop(Value..),
+                which define additional characteristics, e.g., style, font, etc., or
+                state of the Item.
+                            
+
+    Note: all four combinations and short and long form of the event and item are supported. 
+
+example:
+      panel_event(my_panel,click,button('OK'))
+      panel_event(my_panel,click(96,36),button('OK'))
+      panel_event(my_panel,click,button(name('OK'),place(90,30,120,50),style(designate),
+                                        label('OK'),state(off),font(0,12),icon(0),menu()))
+      panel_event(my_panel,click(96,36,0,0,1,0),button(name('OK'),place(90,30,120,50),Etc..))
+                            % Etc.. is unified with the remainder of item's properties
+
+Events:
+
+    select(X,Y) 
+                mouse at X,Y down on an Item. 
+                Examples:
+                Item = button(fred) user event handler;
+                       a default item event handler will highlight the button
+
+    unselect(X,Y) 
+                mouseup at X,Y after a select, mouse may not be on the Item
+                Note: this is often ignored, but for example, the default button
+                       event handler will remove the buttons highlight.
+
+    click(X,Y)  
+                mouseup at X,Y after an unselect, and the mouse is still on the Item
+                Note: this event is always proceeded by a select and un unselect.
+
+    doubleclick(X,Y) 
+                mouse down/up/down at X,Y all within the desktop's double click time
+                Note: this event is always proceeded by a click.
+
+    downidle(X,Y)
+                idle event, mouse button is down
+
+    upidle(X,Y)
+                idle event, mouse button is up
+
+    keystroke(Key,Mods)
+
+                userkey event,where Key is a single character symbol and Mods is a list 
+                of six integers (0 or 1) defining the state of the modifier keys as in: 
+                    [Control,Option,Capslock,Shift,Command,Mouseup]
+                (The item is set to the void).  
+
+    others..    specific to item classes (may be extended by new classes) 
+                See class documentation.
+
+
+panel_event(Panel,Event)
+------------------------
+
+    Event = open  -- the panel has just been activated.
+          = close -- the panel window is about to be closed.
+
+
+dispatch_panel_event(Panel,Event(Ev..),Class(name(Name),Etc..))   % panel works
+---------------------------------------------------------------
+
+This predicate generates the alternative standard forms of panel_event.  It should
+be used in preference to calling panel_event directly.
+
+
+panel_view(Panel,Item_access..)     % panel view
+-------------------------------
+
+This predicate is used to read or write the properties (including name and place)
+associated with any item in the panel.  A number of read/write operations can be 
+specified (panel_view is variadic) and each will be attempted. Failure of any 
+individual operation does not impact any other operation and panel_view always 
+succeeds. An item's item class determines how the Value is interpreted. With the
+exception of replace ('<=') and delete, common variables unified with one operation 
+can be used in subsequent operations, permitting, for example, the contents of one 
+field to be written to another with a single panel_view call, as in
+
+            panel_view(example,field(fred):Contents,field(sam):=Contents)
+
+With this in mind:
+
+            panel_view(Panel,Item_access..)
+
+Item_access can be any number of terms of the following forms:
+
+    Class(Name) : Value     unify Value with a component of Items current value.
+                            A component can be a property, a list of properties,
+                            or a form defined by the class, e.g., if Class=field,
+                            a variable Value will be unified with a symbol which
+                            is the field's contents, as in
+
+                                    field(fred):Text
+                
+                            Note the semantics of this operation is defined by:
+                              
+                              panel_item_read(Item,Value)
+                
+                            which unifies Value as appropriate for this Item.
+
+    Name : Value            shorthand form of that above. e.g.: fred:Text
+
+    Class(name(Name),place(Place..),Ps..) : Value
+
+                            longhand form of the above, e.g.:
+ 
+                                    field(name(fred),place(P..),Ps..)
+                                Note that any unbound variables in the property list
+                                are bound and can be used in subsequent operations.
+
+
+    Class(Name) := Value    assign a new value to the panel Item. As for ':', Value
+                                can be a property, a property list, or a class
+                                defined form, e.g.,
+
+                                field(fred):='1234'
+                          
+                            Note this calls:
+
+                                panel_item_write(Item,Value,NewItem,Graf)
+
+                            which is responsible for any Graf structure that
+                            will cause the display to be updated appropriately.
+                            dograf(Panel,Graf) is the ONLY side effect in addition
+                            to the object assignment. Shorthand and longhand forms
+                            of the item are allowed as described above.
+
+
+
+Less common Item_access forms include:   
+
+    Class(Name) <= NewItem  replace Item with NewItem. Erase and the old item,
+                            draw the new one, and invalidate any exposed area.
+                            Note that no property binding occurs for the replacement
+                            operation due to an implementation decision to conserve
+                            stack space.
+
+    [Items..]<=[NewItems..] deletes Items and inserts NewItems
+                            
+    [] : Items  -- Complete list of items in the panel.
+  
+    [] <= Item (or [Items..]) -- to REPLACE panel item contents.
+
+    delete(Class(Name)) -- remove an item from the panel contents
+
+    insert(Class(Name,Place,Props..))  -- add a new item into the panel contents
+
+    Item                  Unify with Item in Panels content list, this can also be used as 
+                          a generator, e.g.,
+                          
+                       panel_view(panel,button(name(Name),_..))
+                            
+                          will generate on backtracking, the names of all the buttons in 
+                          'panel', and
+
+                       foreach(panel_view(panel,button(Etc..),
+                                                button(Etc..):=style(rectangle)) do [])
+
+                          changes all buttons in 'panel' to a rectangle style.
+            
+                          This form of panel_view will fail if Item cannot be unified with
+                          with an item in the designated panel.
+    
+   **** N.B. panel_view will also fail if Panel is not open. **** 
+
+
+panel_id(Panel,Template,Window)   % panel sys
+-------------------------------
+
+Panel identifiers have two forms:
+
+    Template        % Template is a symbol identifying the panel_definition to be used
+    Template:ID     % Template as above, ID is application supplied term used to
+                    %   distinguish instances of the same definition.
+
+    'panel_id', given a valid 'Panel' name, 'Template' and 'Window' are unified with the 
+name of the panel_definition and the corresponding window name respectively.
+
+
+panel_open(Panel)
+panel_open(Panel,Init..)
+panel_open(Panel,pos(X,Y))
+panel_open(Panel,pos(X,Y),Init..)   % panel sys
+---------------------------------
+
+This call activates an existing panel, or open a new panel with an existing 
+definition, or to create a panel with the given name by referring to panel_definition
+clauses.  Panel can be either a template name (symbol) or an instance (Template:Id).
+(in the latter case, the panel_defintion for Template is used to create the panel.)
+
+If pos(X,Y) is the second argument, the stored panel position is ignored, and the panel
+is opened centred at the provided X,Y coordinates.  Init.. is an optional sequence of 
+panel_view operations which may be used to initialize the panel.
+
+Open.. in the Panels menu lists panels with definitions found loaded (and shows the 
+context they are found in. Double clicking does a panel_open.
+ 
+No context load or unload is ever done -- applications must do this explicitly.
+
+
+panel_create(Panel)
+panel_create(Panel,pos(X,Y))
+panel_create(Panel,Window,Content)  % panel sys
+----------------------------------
+
+panel_create creates a panel, but does not open it.  The first form creates a panel from
+a loaded panel_definition.  The second, does the same except the position can be overridden 
+(created panel is centred at the provided X,Y coordinates). The third form creates a panel
+given Window (a list of the form [Pos,Size,options(Options..)]) and Content (a list of 
+items). This allows Panels to be created dynamically, i.e., no panel_definition clause 
+is required.
+
+
+panel_save(Panel)   % panel sys
+-----------------
+
+Saves the current definition of the panel in a file. If the panel has just been
+created, the user is prompted for the file name; otherwise it is saved in the
+file from which it was was loaded. Fails if the user cancel's from a dialog.
+
+
+panel_close(Panel)  % panel sys
+------------------
+
+Closes the window with a save dialog (see above) if the panel definition has been 
+changed. Fails if the user 'cancel's from any dialog.
+
+panel_reopen(Panel) % panel sys
+-------------------
+
+Closes and reopens an existing panel.  Used to change window attributes.
+
+
+panel_rename(Panel, NewPanel) % panel sys
+-----------------------------
+
+Rename an existing panel.
+
+
+ispanel(Panel)  % panel sys
+--------------
+
+Acts as a tester or generator for open panels.
+
+
+panel_attribute(Panel, Attr_access) % panel sys
+-----------------------------------
+
+General access to panel attributes.
+
+
+panel_menu(Panel,List,Choice) 
+panel_menu(Panel,List,Item,Choice) 
+panel_menu(Panel,List,Item,X,Y,Choice)   % panel sys
+---------------------------------------- 
+
+panel_menu/3 displays a pop-up menu in the panel at the location of the last mouse down, 
+fails if no menu item is chosen, else it unifies Choice with the menu entry chosen.
+panel_menu/4 specifies the item (either list index, or list element) on the menu to be
+positioned at the last mouse down. panel_menu/6 specifies the item and co-ordinates to
+position the menu.
+
+
+
+Creating New Classes
+--------------------
+
+The visual and behavioural characteristics of a class are defined by a set of class
+methods, and a set of default event handlers.  The class methods provide ways of creating
+reading, writing, etc. items independant of their context, i.e., which panel they're in.
+The panels system provides a set of default methods which may be sufficient in many cases.
+The class methods are:
+
+panel_item_class(class_name).
+-----------------------------
+
+To cause class_name to appear in the panel editors 'NewÉ' pop-up menu; no default provided.
+
+
+panel_item_new(Class,Name,X,Y,Item)
+-------------------------------------------
+    
+To create a new item.
+    Class = new item class name,
+    Name  = item instance name (any Prolog term) 
+    X,Y   = top left corner of new Item
+    Item  = your new item.
+The default displays an error dialog indicating the method is undefined.
+    
+
+panel_item_graf(Item,Graf)
+-------------------------- 
+   
+    Graf is a structure that can be used in dograf to draw Item
+    Note: this is now the only action taken on the display screen, so
+    this item class method is responsible for erasing an area to draw in, 
+    setting the penmode, fillmode, and so on.  The default method draws a black
+    rectangle in the 'place' and outputs a message to the console (if present).
+
+
+panel_item_grow(Item,H,V)
+-------------------------
+
+    H or V = 0 is no growth, 
+    or provides lower limit(s) for horizontal (H) and vertical (V) size.
+    The default is H,V = 0,0 (no re-size possible) 
+  
+
+panel_item_hit(Item,X,Y)
+-------------------------
+
+    Succeeds if a mousedown at window coordinates X,Y 'hits' the object; the default
+succeeds if X,Y is in the 'place' rectangle. 
+  
+
+panel_item_read(Item,Value)
+---------------------------
+
+    Unifies Value with a property or class value of Item, w.g., the class value of a 
+    button is its state.  The default supports all property access; the class 
+    implementation need only provide support for class value, e.g., if Value is a variable
+    (or not unifiable with a property or property list), it may be unified with the class
+    value using a class specific method.
+
+
+panel_item_write(Item1,Value,Item2,Graf)
+----------------------------------------
+    
+    Write Value to Item1 producing Item2 and resultant Graf update.  Vaule may be a whole
+    new object, a single property, or a class value.  This method is used to implement
+    Item1:=Value in panel_view.  A default is provided for writing properties or whole
+    objects, but may result in unnecessary redrawing of the object, e.g., redrawing
+    field objects when the field is locked or unlocked.  Therefore the field class provides
+    a method which results in no graphic update when writing to the lock property.  In
+    addition, the class must support writing the class value form.  The default supports
+    the following semntics:
+        1. If Value is a variable, the operation is a noop, i.e., Item1=Item2, Graf=_
+        2. If Value is a property, or property list, the appropriate properties are
+           replaced and the object is redrawn as defined by panel_item_graf.
+        3. If Value is a complete object of the same class, the old property list is
+           repalced by the new property list, subject to mimimum size restrictions
+           defined by panel_item_grow, and the object is redrawn as defined by 
+           panel_item_graf.
+        4. Otherwise, the operation is a noop (see 1.)
+
+
+
+Provided Classes:
+-----------------
+
+In addition to the form of objects in each class, the read (panel_view ':' operator) and 
+write (panel_view ':=' operator) behaviour, and default operational behaviour are described.
+
+
+Button Class
+    
+    The 'button' class subsumes several earlier classes like text, icon, check_box, 
+hotspot, and popup, as well as button. The form of a button object is:
+
+        button(name(Name),      % a symbol identifying the button in a panel
+               place(Place..),  % a list of 4 integers defining a rectangle
+               style(Style),    % one of standard, designate, transparent, rectangle,
+                                %   shadow, 'radio button', 'check box', motif,
+                                %   'motif radio button', 'motif check box'  
+               label(Label),    % a symbol, may be used to distinguish radio buttons
+               state(State),    % 'on','off', 'nil' (used to disable hilighting),
+                                %   or 'disable' (no hilighting, grayed appearance) 
+               font(F,S,St..),  % font name, size and style specification
+               icon(Id),        % icon Id, 0 indicates none
+               menu(Ms..)       % menu associated with a button (not implemented)
+              )                 % end of value specification
+
+    The 'Style','State', and 'menu(Menu..)' terms affect the operational behaviour of the
+button.  Other terms in the value only affect the appearance and can be altered using
+the button editor (see below).  (Of course, the programmer can use panel_view to alter
+any parts of the object definition.)  (Due to the way in which disabled buttons are
+rendered, disabled, transparent buttons on patterned backgraounds, or pictures, do not
+work well.  However, no attempt is made to prohibit this combination.) 
+
+The button class value is its state (one of 'on', 'off', 'nil' or 'disable'), i.e, the state 
+of buttons can be read and written using a simple form of panel_view, as in
+
+            panel_view(panel,button(fred):State)
+            panel_view(panel,button(fred):=disable)  
+
+    Default behaviour for non-check boxes and non-radio buttons:
+        On select, if the state is 'off' and the menu is empty, set the new state to 'on'
+            and hilite the button (different styles hilite differently). If the menu
+            is non-empty,  set the new state to 'on' (hiliting the button), and drop the
+            associated menu below the button. If a menu selction is made, issue:
+          panel_event(Panel,menu(Selection),button(Name,Place,Value))
+            Then, set the button state to 'off' and un-hilite the button. If the state
+            is 'nil' or 'disable' when the button is selected, no state changes and no 
+            hiliting is done.  Non-empty menus remain active if the state is 'nil'.
+        On unselect, if the state is 'on', set the new state to 'off' and unhilite the 
+            button. (The default panels system behaviour will also issue a click event
+            if the select and subsequent unselect occur while the mouse is pointing at 
+            the button, or no menu selection is made.) 
+        On a <return> or <enter> key, the first button in the panel with the style 
+            'designate' will be issued a click event.
+        On any other key, the first button whose first key of its label matches the 
+            keystroke will be issued a click. (Note that associated menus have no effect
+            when this happens.) See 'Example 4' for an effective use of this behaviour.
+    
+    Default behaviour for check boxes:
+        On select, if the state is 'off', set the new state to 'on' and hilite the button
+            (different styles hilite differently). If the state is 'on', set the new state
+            to 'off' and unhilite the button. Issue (button value has new state):
+          panel_event(Panel,update(Old_state),button(Name,Etc..))
+        On unselect, do nothing.
+
+    Default behaviour for radio buttons:
+        On select, set the state to 'on' and hilite the button (different styles hilite 
+            differently). If there is another radio button with the same name in the same 
+            panel in the 'on' state, turn it off. Issue (button value has new state):
+          panel_event(Panel,update(Old_label),button(Name,Etc..))
+            where Old_label is the label on the button that was turned 'off'.
+        On unselect, do nothing.
+
+
+Field Class
+    
+    Fields are containers for user editable text.  While they are similar to earlier field
+objects, they have been extended in several ways.  First, they are multiline and fully
+support cut/copy/paste; in essence they are a mini text window with no scroll bars.  The
+font style and size can be specified by the developer. Finally, they have an optional
+menu associated with them which may be used to select values for the field.  (This 
+combination of fields and popup menus is very common in existing panels' applications.) 
+The form of a field object is:
+
+
+        field(name(Name),       % a term identifying the button in a panel
+              place(Place..),   % a list of 4 integers defining a rectangle
+              pre(Pre_Sel),     % symbol prior to selection in field
+              selection(Sel),   % symbol representing selection in field
+              post(Post_Sel),   % symbol after selection in field
+              top(Top),         % top line visible in field (integer) 
+              font(F,S,St..),   % font name, size and style specification
+              lock(OnOff),      % flag indicating whether the field is editable
+              lines(OnOff),     % flag indicating whether lines are to be visible
+              style(Style),     % one of transparent, opaque, rectangle, shadow, motif
+              menu(Sel..),      % menu associated with a field
+              exitset(exitchs..)% set of edit exit chars, default is <tab>,<enter>
+              )                 % end of value specification
+    
+    The 'lock(Lock)' and 'menu(Menu..)' terms affect the operational behaviour of the
+button.  Other terms in the value only affect the appearance and can be altered using
+the field editor (see below).
+
+The field class value is the symbol formed by concatenating the 'pre', 'selection', and
+'post' property values.  On writing a symbol to a field, the 'pre' and 'post' properties
+are set to '', and the 'selection' is set to the symbol.
+
+
+    Default behaviour:
+        On select, if the menu is non-empty, the menu is popped up with the current 
+        contents positioned in the top left corner of the field.  If the contents do not 
+        match a menu item, the top menu element is positioned in the top left corner.  If
+        a selection is made, the slection replaces the current contents of the field and 
+        the following panel event is issued:
+            panel_event(Panel,update(pre(Prev),selection(Sel),post(Post),top(Top)),
+                              field(Name,Etc..))
+        If no selection is made the select is ignored, possibly to become the front end of a 
+        'click' event.
+
+        On click, the user is placed in field edit mode. The cursor/selection is defined
+        by the current contents of the field. Edit mode is normally terminated by mouse
+        events outside the field, by keystrokes corresponding to characters in the exitset,
+        or by command keys. Note that the field background lines will disappear during 
+        editing; this is a current implementation restriction.  Cut, copy, paste, and 
+        select all command keys, and their menu equivalents, have the expected semantics 
+        during field editing, and can be used to transfer contents between fields. On 
+        termination, an update panel_event is issued, as described above.
+
+        If the field is locked, the field cannot be edited.
+
+
+List Class
+
+    Lists are scrollable lists of text lines from which single, or multiple selections can
+be made.  Single selections can also be dragged to another position in the visible portion 
+of the list.  By default, the terms representing the individual lines of the list are 
+written to a  symbol, truncated as necessary, and then displayed as text.  A hook has been 
+provided to allow alternative graphing of the terms, provided they fit in the same area as 
+the default text.  Lists are often used with fields for adding, deleting, or changing items
+in the list (See some of the class editors for examples).  The form of a list object is:
+
+        list(name(Name),        % a symbol identifying the button in a panel
+             place(Place..),    % a list of 4 integers defining a rectangle
+             contents(L..),     % contents (terms) of the list
+             selection(I,Sel),  % current selection: index (integer) and selection (term)
+                                %   or lists of indices and selected terms 
+             top(T),            % index into list of top displayed term 
+             style(Style),      % one of rectangle, shadow, or motif
+             font(F,S,St..)     % font name, size and style specification
+            )                   % end of value specification
+
+There is no class value for a list.
+
+    Default behaviour:
+        On select, the following augmented select panel event is issued:
+        panel_event(Panel,select(X,Y,Index),list(Name,Etc..))
+      where 'Index' specifies which item in the list is at coordinates X,Y.
+        On select/3 event, the text line at the mouse co-ordinates is hilited, and the 
+      previous selection, if any, is unselected. The following panel_event is issued:
+        panel_event(Panel,update(Old_selection),list(Name,Etc..))
+      where the new selection can be obtained from item properties. Multiple selections
+      can be made using the shift key when selecting.  This adds the item to the selection,
+      if it wasn't previusly selected, or deletes it from the selection, if it wasn't.
+      If the selection is dragged to a new position, the following panel_event is issued:
+        panel_event(Panel,update(contents(OldContents..),selection(OldIndex,OldSelection)),
+                    list(Name,Etc..))
+
+
+    As noted above, it is sometimes desirable to have the application draw the 'lines' in
+the list.  For this purpose the following hook has been provided for list objects:
+
+        panel_list_line_graf([Index,        % index specifying list line to draw
+                              Select,       % index specifying current selection
+                              List],        % list
+                             [Xl,Yt,Xr,Yb], % rectangle covering visible part of line
+                             font(F,        % font id
+                                  S,        % font size
+                                  [St..],   % font style(s)
+                                  Ascent,   % size characteristics..
+                                  Descent,
+                                  Leading),
+                              Window,       % a window to be used in text sizing
+                              Graf)         % resultant graf structure   
+
+ 
+
+Editing Panels
+--------------
+
+    Each class should support an edit dialog/panel which is invoked by double clicking on
+a selected object of that class. When this occurs the follwing panel_event is generated:
+
+    panel_event(Panel,edit(X,Y),Class(Name,Etc..))
+
+The class implementation then responds to this event by invoking the appropriate edit
+dialog.  (See the file 'Editing' for more information on the class editors).
+
+    In addition to the object editors, selected objects can be cut/copy/pasted and deleted
+using standard Mac editing techniques.  However, be forewarned that copied objects are
+exact copies, any name duplication or other conflicts must be resolved by the developer.
+
+
+Motif Style 
+-----------
+
+    Motif panels, buttons, fields, lists, radio buttons, and check boxes are now fully
+supported inside panels.  However, the graphics has changed to permit various fonts and
+styles to be clearly displayed.  Half-tone shading has been replaced by colour/gray scales, 
+which means they can't be used on monchrome Mac's (e.g., Mac Plus, SE, SE/30).  The default
+colour is defined by the fact 'motif_colour(yellow).'; to change the colour overload this
+clause with your own definition.  The background colour is set separately using the panel
+editor.
+
+
+Miscellaneous:
+--------------
+
+    panel_directory(Folder)         % panel uif
+    -----------------------
+
+    Unifies Folder with the directory name from which Panels was loaded; this is
+    provided mainly so online help can find auxiliary files.
+
+
+    panelfont(Font,Size)            % panel works
+    --------------------
+
+    Unifies Font and Size with the default panel font; all text associated with
+    pre-defined item classes default to this font. Of course, user supplied items
+    can use whatever font they wish.
+
+
+    panel_text_size(Text,Length,Height)
+    panel_text_size(Text,Length,Height,Descent)
+    panel_text_size(Text,font(Font,Size,St..),Length,Height,Descent)   % panel works
+    --------------------------------------------------------------------------
+
+    Calculates the length, height and optionally descent (in pixels) of Text displayed 
+    in default, or specified font.
+
+
+    panel_expand_rect(Rect1,Dx,Dy,Rect2)       % panel works
+    -------------------------
+
+    Rect1 and Rect2 are definitions of rectangles, i.e., of the form [X1,Y1,X2,Y2].
+    Rect2 is Rect1 expanded in the x and y directions by Dx and Dy respectively.
+
+
+    panel_target_item(Itemlist,X,Y,Item)       % panel works
+    panel_target_item(Panel,X,Y,Item)
+    -------------------------
+
+    Item is a member of Itemlist, or defined in Panel, whose boundaries contain the 
+	point X,Y. If no items meet this requirement, Item is bound to the void item 
+	(see below).
+
+
+    voiditem(void(name(void),place(0,0,0,0)))  % panel works
+    -----------------------------------------
+
+    Defines the void item (the target of a mouse down inside the panel window, but not
+    'hitting' an item in the panel.
+
+
+    panels_version(Version)         % panels
+    -----------------------
+
+    Unifies Version with current version of Panels; this will correspond with the
+    context name for Panels when it's loaded as delivered.
+
+/*
+   Copyright © Bell-Northern Research Ltd. 1991
+*/
+

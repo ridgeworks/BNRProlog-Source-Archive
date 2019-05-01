@@ -1,0 +1,181 @@
+SNIFF_MAKEDIR	= .sniffdir
+SNIFF_MACROS_INCL	= macros.incl
+SNIFF_OFILES_INCL	= ofiles.incl
+SNIFF_VPATH_INCL	= vpath.incl
+SNIFF_DEPEND_INCL	= dependencies.incl
+SNIFF_INCLUDE_INCL	= include.incl
+SNIFF_LINK_TARGET	= dummy_link_target
+SNIFF_OTHER_LIBS	= 
+SNIFF_RELINK_TARGET	= dummy_relink_target
+SNIFF_RELINK_OTHER_LIBS	= 
+SNIFF_LIB_TARGET	= dummy_lib_target
+
+SNIFF_JAVA_HTML_TARGET	= dummy_java_html_target
+JAVA_HTML_TARGET		= $(SNIFF_JAVA_HTML_TARGET)
+SNIFF_JAVA_APPLET_TARGETS	= 
+JAVA_APPLET_TARGETS		= $(SNIFF_JAVA_APPLET_TARGETS)
+
+SNIFF_JAVA_APPLET_CLASSES	= 
+JAVA_APPLET_CLASSES		= $(SNIFF_JAVA_APPLET_CLASSES)
+
+SNIFF_JAVA_APPLICATION_TARGET	= dummy_java_application_target
+JAVA_APPLICATION_TARGET			= $(SNIFF_JAVA_APPLICATION_TARGET)
+
+SNIFF_JAVA_CLASSPATH	= /disc9/sniff/ssws;$(SHARED_SRC);$(SHARED_OBJ)
+SNIFF_JAVA_GENDIR_ROOT	= /disc9/sniff/ssws
+SNIFF_JAVA_PACKAGE_DIR	= BNRProlog/prologSupport
+SNIFF_JAVA_PACKAGE_NAME	= BNRProlog.prologSupport.
+SNIFF_JAVA_CLASS_FILES	= 
+PURIFY_TARGET		= dummy_purify_target
+QUANTIFY_TARGET		= dummy_quantify_target
+SNIFF_SUB_LIBS		= 
+SNIFF_SUB_RELINK_OFILES	= 
+SNIFF_OTHER_TARGETS	= 
+SNIFF_TARGETS		=
+# The default target is SNIFF_TARGET
+SNIFF_TARGET		= $(OFILES)
+SNIFF_INCLUDE		= 
+SNIFF_SUBDIRS		= 
+
+SNIFF_ShSWS		= $(SHARED_SRC)/BNRProlog/prologSupport
+SNIFF_ShSWS_2		= '\$$(SHARED_SRC)/BNRProlog/prologSupport'
+SNIFF_ShOWS		= $(SHARED_OBJ)/BNRProlog/prologSupport
+SNIFF_OBJ_VPATH	= 
+SNIFF_PrOBJD	= /disc9/sniff/ssws/BNRProlog/prologSupport/
+SNIFF_ShOBJD1	= $(SHARED_OBJ)/BNRProlog/prologSupport/
+SNIFF_ShOBJD2	= dummy2/
+SNIFF_ShOBJD3	= dummy3/
+SNIFF_ShOBJD4	= dummy4/
+SNIFF_ShOBJD5	= dummy5/
+SNIFF_ShOBJD6	= dummy6/
+
+SNIFF_PROJECT_DIR	= BNRProlog/prologSupport
+SNIFF_RELATIVE_ROOT_DIR	= ../..
+SNIFF_GENERATE_DIR	= .sniffdir
+SNIFF_GENERATE_DIR_ROOT	= 
+
+SNIFF_PROJECT		= prologSupport.shared
+SNIFF_STATUSFILE	= .Sniff_LastUpdateOfProject_$(SNIFF_PROJECT)
+
+SNIFF_VCS		= RCS
+SNIFF_REPOSITORY_DIR	= $(REPOSITORY)/BNRProlog/prologSupport
+
+SNIFF_Archive_DIR	= .
+SNIFF_Archive_FILES	= 
+
+SNIFF_Bit/Pixel_Map_DIR	= .
+SNIFF_Bit/Pixel_Map_FILES	= 
+
+SNIFF_Config_DIR	= .
+SNIFF_Config_FILES	= 
+
+SNIFF_Document_Template_DIR	= docu/tmpl
+SNIFF_Document_Template_FILES	= 
+
+SNIFF_Emacs_Lisp_DIR	= .
+SNIFF_Emacs_Lisp_FILES	= 
+
+SNIFF_EMI_Table_DIR	= .
+SNIFF_EMI_Table_FILES	= 
+
+SNIFF_GIF_DIR	= .
+SNIFF_GIF_FILES	= 
+
+SNIFF_Header_DIR	= .
+SNIFF_Header_FILES	= 
+
+SNIFF_Header_Documentation_DIR	= docu
+SNIFF_Header_Documentation_FILES	= 
+
+SNIFF_Hidden_DIR	= .
+SNIFF_Hidden_FILES	= 
+
+SNIFF_HTML_DIR	= .
+SNIFF_HTML_FILES	= 
+
+SNIFF_Image_DIR	= images
+SNIFF_Image_FILES	= 
+
+SNIFF_Implementation_DIR	= .
+SNIFF_Implementation_FILES	= 
+
+SNIFF_Implementation_Documentation_DIR	= docu
+SNIFF_Implementation_Documentation_FILES	= 
+
+SNIFF_Lex_Source_DIR	= .
+SNIFF_Lex_Source_FILES	= 
+
+SNIFF_Make_DIR	= .
+SNIFF_Make_FILES	= BNRP.mk BNRPlinker.mk \
+		makefile 
+
+SNIFF_Manual_DIR	= .
+SNIFF_Manual_FILES	= 
+
+SNIFF_Miscellaneous_DIR	= .
+SNIFF_Miscellaneous_FILES	= 
+
+SNIFF_NAV_Config_DIR	= .
+SNIFF_NAV_Config_FILES	= 
+
+SNIFF_Neuron_Data_Resource_DIR	= .
+SNIFF_Neuron_Data_Resource_FILES	= 
+
+SNIFF_Object_DIR	= .
+SNIFF_Object_FILES	= 
+
+SNIFF_Oracle_Report_Definition_DIR	= .
+SNIFF_Oracle_Report_Definition_FILES	= 
+
+SNIFF_Postscript_DIR	= .
+SNIFF_Postscript_FILES	= 
+
+SNIFF_Project_Description_DIR	= .
+SNIFF_Project_Description_FILES	= prologSupport.shared 
+
+SNIFF_Prolog_DIR	= .
+SNIFF_Prolog_FILES	= 
+
+SNIFF_Python_DIR	= .
+SNIFF_Python_FILES	= 
+
+SNIFF_Shell_Script_DIR	= .
+SNIFF_Shell_Script_FILES	= 
+
+SNIFF_SQL_Script_DIR	= .
+SNIFF_SQL_Script_FILES	= 
+
+SNIFF_Yacc_Source_DIR	= .
+SNIFF_Yacc_Source_FILES	= 
+
+SNIFF_ZZAll_DIR	= .
+SNIFF_ZZAll_FILES	= 
+
+SNIFF_FILETYPE_DIRS	= . docu/tmpl docu images 
+SNIFF_FILES	= '$$SNIFF_Archive_FILES' '$$SNIFF_Bit/Pixel_Map_FILES' \
+		'$$SNIFF_Config_FILES' '$$SNIFF_Document_Template_FILES' \
+		'$$SNIFF_Emacs_Lisp_FILES' '$$SNIFF_EMI_Table_FILES' \
+		'$$SNIFF_GIF_FILES' '$$SNIFF_Header_FILES' \
+		'$$SNIFF_Header_Documentation_FILES' '$$SNIFF_Hidden_FILES' \
+		'$$SNIFF_HTML_FILES' '$$SNIFF_Image_FILES' \
+		'$$SNIFF_Implementation_FILES' '$$SNIFF_Implementation_Documentation_FILES' \
+		'$$SNIFF_Lex_Source_FILES' '$$SNIFF_Make_FILES' \
+		'$$SNIFF_Manual_FILES' '$$SNIFF_Miscellaneous_FILES' \
+		'$$SNIFF_NAV_Config_FILES' '$$SNIFF_Neuron_Data_Resource_FILES' \
+		'$$SNIFF_Object_FILES' '$$SNIFF_Oracle_Report_Definition_FILES' \
+		'$$SNIFF_Postscript_FILES' '$$SNIFF_Project_Description_FILES' \
+		'$$SNIFF_Prolog_FILES' '$$SNIFF_Python_FILES' \
+		'$$SNIFF_Shell_Script_FILES' '$$SNIFF_SQL_Script_FILES' \
+		'$$SNIFF_Yacc_Source_FILES' '$$SNIFF_ZZAll_FILES' 
+
+SNIFF_DERIVED_FILES	= 
+
+# backward compatible macros for SNiFF+ 2.1 or older
+SNIFF_LIBS		= $(SNIFF_SUB_LIBS) $(SNIFF_SUB_RELINK_OFILES)
+SUB_RELINK_OFILES		= $(LIBS)
+# set default value
+IMPLEMENTATION_DIR	= .
+# backward compatible macros for SNiFF+ 2.3.1 or older
+D	= :
+VPATH_DELIMITER	= :
+

@@ -1,0 +1,8 @@
+include $(SNIFF_DIR)/make_support/general.link.mk
+include $(SNIFF_DIR)/make_support/general.ilog.mk
+include $(SNIFF_DIR)/make_support/general.c.mk
+include $(SNIFF_DIR)/make_support/general.fortran.mk
+include $(SNIFF_DIR)/make_support/general.idl.mk
+include $(SNIFF_DIR)/make_support/general.java.mk
+include $(SNIFF_DIR)/make_support/general.yl.mk
+include $(SNIFF_DIR)/make_support/general.uimx.mk

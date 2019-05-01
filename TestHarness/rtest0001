@@ -1,0 +1,98 @@
+	/*******************************************************\
+	*							*
+	*	BNR Prolog Regression Test Suite:		*
+	*	================================		*
+	*							*
+	*	Program:	Text I/O, load & compile test	*
+	*	Version:	1.0.1				*
+	*	File:		RTEST0001			*
+	*	Written:	I Sykes		Date: 4/12/97	*
+	*	Revised:			Date:		*
+	*							*
+	*	Main predicate is 'test0001'			*
+	*							*
+	\*******************************************************/
+
+
+
+%	Main test predicate:
+%	===================
+
+	test0001:-
+		write_test("Begin 'test0001'."),
+		check_files,
+		consult_and_execute,
+		write_test("Conclude 'test0001'.").
+
+
+
+%	    Checks that test context files are in the default directory.
+		check_files:-
+			write_test("Begin file check:"),
+			defaultdir(D),
+			write("\nDefault directory is '",D,"'.\n"),
+			tc(X,_,Y),
+			is_file(X,Y),
+			fail.
+		check_files:- write_test("File check complete.").
+		
+			is_file(X,W):-
+				isfile(X,Y,Z),
+				write_test("Found ",W,X,"\t(",Y," , ",Z,")"),!.
+			is_file(X,Y):-
+				write_test(X," (",Y,") was not found.").
+
+
+
+		consult_and_execute:-
+			write_test("Begin context tests:"),
+			tc(Context,Main,Desc),
+			write_test("Loading ",Desc,Context),
+			is_loaded(Context,Result),
+			run_main(Result,Main),
+			write_test("Unloading context ",Context),
+			exit_context(Context),
+			fail.
+		consult_and_execute:- write_test("Conclude context tests:").
+
+			is_loaded(Context,yes):-
+				load_context(Context),
+				context(Context),
+				write_test("Context ",Context," successfully loaded."),!.
+			is_loaded(Context,no):-
+				write_test("Context ",Context," failed to load.").
+				
+			run_main(no,_):- !. 
+			run_main(yes,""):-
+				write_test("No predicate to run."),!. 
+			run_main(yes,Main):-
+				write_test("Executing predicate '",Main,"'"),
+				Main.
+
+
+
+%	Test Contexts:
+%	=============
+	tc(rtestdata01,"","non-existant file: ").
+	tc(rtestdata02,"","empty file: ").
+	tc(rtestdata03,"","non-ASCII file: ").
+	tc(rtestdata04,"","mixed text& non-BNR Prolog file: ").
+	tc(tfta, tft(4,test_unify),"self replicating context: ").
+
+
+
+
+
+%	CROSS CONTEXT UNIFICATION TEST:
+%	==============================
+	test_unify:-
+		findall(X,context(X),[FN,FO,_..]),
+		write_test("Between contexts ",FO," and ",FN,":"),
+		definition(D1,FO),
+		definition(D2,FN),
+		D1=D2,
+		write_test(D1," unified with ",D2),
+		fail.
+	test_unify:- nl.
+
+

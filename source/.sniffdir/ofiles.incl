@@ -1,0 +1,14 @@
+OFILES = common_subex.o compare.o context.o \
+		core.o coreTest.o embed.o \
+		external.o fsysprim.o hardware.o \
+		hash.o interpreter.o interval.o \
+		ioprim.o loader.o memory.o \
+		network.o networkTCP.o networkUDP.o \
+		parse.o prim.o procs.o \
+		pushpop.o rings.o shell.o \
+		state.o stats.o tasking.o \
+		utility.o wollongong.o 
+
+CLASSFILES = 
+
+

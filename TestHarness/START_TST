@@ -1,0 +1,52 @@
+	##########################################################################
+	#                                                                        #
+	#		Compiles and executes the Prolog program                         #
+	#	   	in the context `rtest_test_rec.p'.                               #
+	#                                                                        #
+	#      -------------------------------------------------                 #
+	#                                                                        #
+	#	Usage:                                                               #
+	#                                                                        #
+	# START_TST <prolog version> <TCP parameters dir> <prolog default dir>   #
+	#                                                                        #
+	#  	   <prolog version> defaults to BNRP-v5.0.5.                         #
+	#  	   <TCP parameters dir> defaults to current directory                #
+	#  	   <prolog default dir> defaults to current directory.               #
+	#	   -------------------------------------------------                 #
+	##########################################################################
+
+#!/bin/csh
+
+if [ $1 ]
+	then PROVER=$1
+	else PROVER='BNRP-v5.0.5'
+fi
+echo "The default Prolog version is "$PROVER
+
+
+if [ $2 ]
+	then TCP=$2'/tcp_params'
+	else TCP=$PWD'/tcp_params'
+fi
+echo "The TCP parameters are in "$TCP
+
+
+if [ $3 ]
+	then DEFDIR=$3
+	else DEFDIR=$PWD
+fi
+echo "The Prolog default directory will be "$DEFDIR
+
+
+PROLOG='/disc9/sniff/sows/pa_risc-hp-hpux10.20/SB_CC/BNRProlog/Releases/'$PROVER'/bin/BNRProlog'	
+#PROLOG='/disc9/sniff/sows/pa_risc-hp-hpux10.0/SB_CC/BNRProlog/Releases/'$PROVER'/bin/BNRProlog'
+#PROLOG='/disc9/sniff/sows/rs6000-ibm-aix4.1.5/CSet++/BNRProlog/Releases/'$PROVER'/bin/BNRProlog'	
+#PROLOG='/disc9/sniff/sows/rs6000-ibm-aix4.2.1/CSet++/BNRProlog/Releases/'$PROVER'/bin/BNRProlog'	
+#PROLOG='/disc9/sniff/sows/sparc-sun-solaris2.3/GNU/BNRProlog/Releases/'$PROVER'/bin/BNRProlog'
+echo $PROLOG
+
+ARG="[defaultdir('"$DEFDIR"'),defaultdir(CD),write(CD),nl,load_context('"$TCP"'),load_context('rtest_test_rec.p'),quit]"
+echo $ARG
+
+($PROLOG -execute $ARG | tee tst_log) 2>>tst_error 
+

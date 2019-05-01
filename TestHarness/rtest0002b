@@ -1,0 +1,49 @@
+	/*******************************************************\
+	*							*
+	*	BNR Prolog Regression Test Suite:		*
+	*	================================		*
+	*							*
+	*	Program:	Unification test 'b'		*
+	*	Version:	2.10				*
+	*	File:		rtest0002b			*
+	*	Written:	I Sykes		Date: 24/06/97	*
+	*	Revised:			Date:		*
+	*							*
+	*							*
+	*	Main predicate is 'unify_b/3'			*
+	*							*
+	\*******************************************************/
+
+
+
+%	Second unification test:  Runs selected group against selected group for selected test.
+%	-----------------------    NB: Use of a (or the anonymous) variable applies all cases.
+
+	unify_b(X,Y,Z):-	%  unify_b(+Group_code,+Group_code,+Test_type)
+		write("\nStart second unification test...\n"),
+		ts(X,ID1,A),
+		ts(Y,ID2,B),
+		ID1 @\= ID2,
+		test_type(Z),
+		write("\n",Z,"\t"),
+		test_unify(Z,A,B) ->
+			[write(ID1,"/",ID2,"\tpassed"),
+			ts(_,ID1,C),write("\t\t",C),
+			ts(_,ID2,D),write("\t<->\t",D)];
+			write(ID1,"/",ID2,"\tFAILED","\t\t",A,"\t<->\t",B),
+		fail.
+	unify_b(_..):- write("\nUnification test 'unify_b' completed.\n").
+
+
+
+
+%	Load test data as required:
+%	==========================
+	$initialization:- load_test_data.
+
+		load_test_data:-
+			not(context("rtest0002t")),
+			load_context("rtest0002t").
+		load_test_data.	
+
+

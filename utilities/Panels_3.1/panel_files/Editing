@@ -1,0 +1,182 @@
+/*
+*
+*  $Header: /disc9/sniff/repository/BNRProlog/utilities/Panels_3.1/panel_files/RCS/Editing,v 1.1 1997/03/19 02:06:40 harrisj Exp $
+*
+*  $Log: Editing,v $
+# Revision 1.1  1997/03/19  02:06:40  harrisj
+# Initial
+#
+ * Revision 1.1  1995/09/22  11:24:00  harrisja
+ * Initial version.
+ *
+*
+*/
+
+A guide to editing panels:
+--------------------------
+
+New panels:
+-----------
+
+The 'New' item in the Panels menu creates a new panel window ready for you
+to edit.  The panel name is of little significance, you can rename it using
+the panel editor described below. You can create more than one new panel at 
+the same time if you wish.
+
+
+Add an item:
+------------
+
+To add an item such as a button or field into a panel just hold the mouse
+down and drag it to open a outline rectangle in an unused area of the window,
+i.e., an area that does not contain any part of any existing item. When the
+mouse button is released a 'New…' button will appear. Click on this button
+to obtain a pop-up menu of available items.  Select an item from this
+menu, and such an item will be pasted into the panel at the location of the
+'New…' button. (Note that the 'New…' button can be moved before selection, 
+just as you would move any other object; see below.)
+
+
+Move an item:
+-------------
+
+Select an item by dragging an outline rectangle as described above, overlapping
+the item (or items) you wish to move. When the mouse button is released,
+the selected item(s) will be inverted. (This is modelled after selecting file
+system objects in the Mac Finder.)  An item can also be selected by clicking
+on an item when the control key is depressed. To move the item(s), just pick 
+somewhere in the center of a selected item to hold the mouse down, and drag the
+mouse to the new location (as in the Finder). The items can be unselected by 
+clicking outside any items in the panel. (Control clicking a selected item 
+will also unselect it.)
+
+
+Re-size an item:
+----------------
+
+Many items can be re-sized, just select the item as described above and
+drag the grow box in the bottom right hand corner.
+
+
+Cut/Copy/Paste:
+---------------
+
+Standard cut/copy/paste techniques are applicable to selections in panels.
+When a copy is made in the clipboard, it is a literal copy, including
+names and positions.  A subsequent paste operation adds the selection in
+the clipboard to the active panel, replacing any current selection.
+
+
+Editing items:
+--------------
+
+Every item is an instance of a class with an associated list of properties,
+which always includes a name property and a place property, as well as class
+specific properties such as style, font information, associated menus, etc.  
+Properties, other than the place, can be changed by double clicking on the 
+item when selected, causing the editor for that object's class to be invoked.  
+The interface to the class editors is in turn a panel permitting interactive
+modification of the item properties.  Clicking on the 'OK' button exits the 
+editor; clicking on the 'Cancel' button exits the editor and restores the 
+object to the state it was in when the editor was entered.
+
+The supplied dialogs for buttons, fields and lists should be fairly 
+self-explanatory, but here's a few tips:
+
+ 1. Each of the supplied dialogs uses a combination list/field to create an 
+    editable list.  Just enter lines in the field (only the bottom line is 
+    displayed) and hit <enter>; each  line is added to the list after the 
+    current list selection, or at the end of the list if there is no selection.
+    Doubleclicking on a list selection places the selection in the field 
+    where it can be editied.  On leaving edit, the contents will replace the 
+    current selection; if the contents are empty, the selection will be deleted.
+    The list can be reordered within the visible list by dragging the selection 
+    to another position in the list.
+
+ 2. The 'Icon' check box in the button editor is used to delete the icon; an 
+    icon is selected from the icon list.
+
+ 3. The font must be selected from the popup menu, but the size doesn't have to
+    be selected from the available sizes.  Just don't select the size from the
+    popup and you'll be left editing the size field.  (If you don't enter a 
+    valid integer, the previous size will be restored.)
+
+
+The item names are used to identify items in a panel, to permit reading or 
+writing information into a field, for example, or to know which button has 
+been clicked. Names do not have to be unique, you can discriminate on the 
+basis of the class or other properties of item: button(fred) or 
+field(name(fred),place(20,20,_..),Ps..) for example.
+
+
+Deleting Items:
+---------------
+
+Items can be deleted by selecting them and dragging them off the edge of the
+window, or using the delete key. 
+
+
+Panel Grid:
+-----------
+
+For interactive editing purposes only, panels have a grid whose default pitch
+is 4 pixels.  When new items are created all sides are aligned to the grid.
+When they are dragged, the top and left sides are aligned, i.e., their size
+does not change (just in case the grid pitch was changed since the item was
+created.  When they are grown, the bottom and right sides are aligned to the
+grid, i.e., the top left corner does not change.  The grid pitch can be changed
+using the panel editor described below. (The grid pitch must be an integer
+greater than zero.)
+
+
+Panel window size and location:
+-------------------------------
+
+You may move or grow the panel window in the same manner as any other window,
+the final size and position will be saved at the end of your editing. In 
+addition to their title bar (if they have one, they can be dragged by a bar 
+16 pixels in height at the top of the panel. There is also a resize box 16 
+pixels square at the bottom right hand corner of each panel. (Note: some 
+panel styles, e.g., rounded, do not provide visual feedback while they're 
+resizing, but they are resizing.) These generic drag and grow regions are 
+only active in areas not covered by other objects, i.e., object behaviour 
+takes precedence. (Thus transparent buttons with no label, which are normally 
+invisible, can be used to disable dragging and growing in an inobtrusive way.)
+Also, locked panels, i.e., panels which can't be changed, cannot be resized,
+although they can be moved.
+
+
+Panel Editing:
+--------------
+
+Double clicking in the panel, but not in any item, will open a panel editor.
+The panel editor allows the user to change such panel properties as the name,
+style, grid pitch, background colour, pattern or picture, and options to prevent 
+further panel editing or to enforce modal dialog behaviour.  Clicking on the
+'OK' button exits the editor; clicking on the 'Cancel' button exits the editor 
+and restores the panel to the state it was in when the editor was entered.
+
+Picture backgrounds are specified by a file name (path) and a resource id
+(integer).  If no file name is specified, the picture must be found in the
+currently open resource forks.
+
+
+Close to end your editing:
+--------------------------
+
+Click the panel window close box (or use 'Close' in the 'File' menu) to end your
+editing and capture a description of the panel layout.  If the panel has not 
+previously been saved, you will be asked to provide a file name.
+
+
+To edit an existing panel:
+--------------------------
+
+Any panel can be edited once it's been opened. On closing the panel, the user
+is promted whether he wishes to save any outstanding changes. However, the
+changes do not take effect until the modified file is reloaded; panels does
+not automatically load anything.
+
+/*
+   Copyright © Bell-Northern Research Ltd. 1991
+*/

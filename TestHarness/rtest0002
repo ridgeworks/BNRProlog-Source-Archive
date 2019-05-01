@@ -1,0 +1,37 @@
+	/*******************************************************\
+	*							*
+	*	BNR Prolog Regression Test Suite:		*
+	*	================================		*
+	*							*
+	*	Program:	Unification tests		*
+	*	Version:	2.1.1				*
+	*	File:		rtest0002			*
+	*	Written:	I Sykes		Date: 4/12/97	*
+	*	Revised:			Date:		*
+	*							*
+	*							*
+	*	Main predicate is 'test0002'			*
+	*							*
+	\*******************************************************/
+
+
+%	Test predicates:
+%	===============
+
+	test0002:-	%  Tests all for all tests.
+		unify_a,
+		unify_b(_,_,_),
+		unify_c(_,_),
+		findall(X,ts(_,X,_),List),
+		unify_d(List,List).
+
+
+%	Load test data as required:
+%	==========================
+	$initialization:- 
+			load_context("rtest0002t"),
+			load_context("rtest0002a"),
+			load_context("rtest0002b"),
+			load_context("rtest0002c"),
+			load_context("rtest0002d").	
+

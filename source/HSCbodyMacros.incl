@@ -1,0 +1,333 @@
+#
+#  $Header: /disc9/sniff/repository/BNRProlog/source/RCS/HSCbodyMacros.incl,v 1.2 1998/06/05 06:04:26 csavage Exp $
+#
+#  $Log: HSCbodyMacros.incl,v $
+# Revision 1.2  1998/06/05  06:04:26  csavage
+# Fix to HSC for recall function core-dump SR,
+#
+# Revision 1.1  1997/12/22  17:01:14  harrisj
+# Added support for HSC and to build HSC and non-HSC BNRP
+#
+#
+#
+
+
+# WAM body Macros
+
+define(PROCEED, `
+   mr		ppc,cp				# move cp into ppc
+   lwz		r12,BNRP_gcFlagTC(RTOC)		# get BNRP_gcFlag
+   lwz		r12,0(r12)			# get BNRP_gcFlag value
+   cmpwi	r12,0				# if zero then no gc
+   beq		Done_Proceed
+   lwz		r11,inClauseTC(RTOC)
+   lhz		r11,0(r11)
+   cmpwi	r11,1				# if in clause no gc
+   beq		Done_Proceed
+   lwz		r11,52(temp)			# get cpbase from tcb
+   cmpw		lcp,r11				# if lcp EQ cpbase then no gc
+   beq		Done_Proceed		# DEBUGGED TO HERE
+   cmpw		ce,be				# compare ce against critical env
+   bge		Done_Proceed			# no gc if ce >= critical env
+   lwz		r11,24(lcp)			# get saved ce from lcp
+   cmpw		ce,r11
+   bne		Done_Proceed			# no gc if lcp env is not current env
+   lwz		r11,28(lcp)			# load continuation pointer from lcp
+   cmpw		r11,cp
+   bne		Done_Proceed			# no gc if cp is not the same as what is in lcp
+   subf		r11,bh,hp			# subtract critical hp from hp
+   cmpw		r11,r12				# compare r11 against BNRP_gcFlag value
+   ble		Proceed_noGC
+   li		r12,0
+   stw		r12,124(temp)			# store 0 in number of regs
+   RESET_CRITICAL
+   mr		r3,lcp				# load lcp into first arg
+   stw		hp,88(temp)			# save hp
+   addi		r4,temp,88			# load address of hp into 2nd arg
+   mr		r5,te				# load te into 3rd arg
+   SAVEARGS
+   addi		r6,temp,124			# load addr of regs into 4th arg
+   bl		.BNRP_gc_proceed{PR}
+   nop
+   LOADARGS
+   lwz		hp,88(temp)			# reload hp
+   b		Done_Proceed
+Proceed_noGC:
+   lwz		r12,0(lcp)			# load clause pointer of lcp
+   cmpwi	r12,0
+   bne		Done_Proceed
+   lwz		lcp,16(lcp)			# remove dummy choicepoint
+   RESET_CRITICAL				# reset critical be, bh, and trim trail
+Done_Proceed:
+   li		r3,0				# leave clause mode
+   lwz		r12,inClauseTC(RTOC)
+   sth		r3,0(r12)
+   b		InterpreterLoop 
+')
+
+
+define(PUSH_VOID,`
+   clrlwi	r12,hp,3			# clear top three bits
+   stw		r12,0(hp)			# store on hp
+   addi		hp,hp,4				# increment hp
+   li		r12,0
+   stw		r12,0(hp)			# clear in case of constraint marker')
+
+define(TPUSH_VOID,`
+   stw		hp,0(hp)			# hp addr by default is tagged as TV
+   addi		hp,hp,4				# increment hp
+   li		r12,0
+   stw		r12,0(hp)			# clear in case of constraint marker')
+
+define(PUSH_END,`
+   li		r12,0				# load zero value
+   stw		r12,0(hp)			# store 0 in hp
+   addi		hp,hp,4				# increment hp')
+
+define(PUSH_CONS,`
+   addi		ppc,ppc,4
+   clrrwi	ppc,ppc,2
+   lwz		r12,0(ppc)			# get constant
+   stw		r12,0(hp)			# put cons on hp
+   addi		hp,hp,4				# increment hp
+   addi		ppc,ppc,3			# increment ppc correctly')
+
+define(DEALLOC,`
+   lwz		cp,0(ce)			# load cp from env
+   lwz		r12,-8(ce)			# get cutb from env
+   stw		r12,80(temp)			# put cutb into TCB
+   lwz		ce,-4(ce)			# update ce')
+
+define(DEBUG_ARITH,`')
+
+define(ESCAPE,`
+   DEBUG_ARITH
+   li		stp,0				# use stp for arithmetic (stacksize|fltbits) 1=fltreg 0=on stack
+   lwz		r3,inClauseTC(RTOC)
+   lhz		r3,0(r3)
+   cmpwi	r3,0
+   beq		BodyEscape
+   b		BodyEscapeClause')
+
+define(PUT_CONS, `
+   addi		ppc,ppc,4
+   clrrwi	ppc,ppc,2
+   lwz		$1,0(ppc)
+   addi		ppc,ppc,3')
+
+define(PUT_CONS_TCB, `
+   lbzu		r9,1(ppc)
+   PUT_CONS(r10)
+   PUT_IN_TCB_REG(r9,r10)')
+
+define(PUT_STRUCT, `
+   lbzu		r12,1(ppc)		# get arity
+   clrlwi	r11,hp,3		# clear top bits
+   oris		$1,r11,STRUCTTAG	# put in STRUCTTAG
+   extsb	r12,r12			# sign extend		
+   andi.	r12, r12, 0xFFFF	# get low byte
+   oris		r12,r12,STRUCTHEADER	# put in struct header
+   stw		r12,0(hp)		# push onto heap
+   addi		hp,hp,4			# increment heap')
+
+define(PUT_STRUCT_TCB, `
+   lbzu		r9,1(ppc)		# get register
+   PUT_STRUCT(r8)
+   PUT_IN_TCB_REG(r9,r8)')
+   
+define(PUT_LIST, `
+   clrlwi	r12,hp,3		# clear tag bits
+   oris		$1,r12,LISTTAG		# insert list tag')
+
+define(PUT_LIST_TCB, `
+   lbzu		r9,1(ppc)
+   PUT_LIST(r8)
+   PUT_IN_TCB_REG(r9,r8)')
+
+define(PUT_NIL, `
+   lwz		$1,64(temp)		# get emptyList from tcb')
+
+define(PUT_NIL_TCB, `
+   lbzu		r9,1(ppc)
+   PUT_NIL(r8)
+   PUT_IN_TCB_REG(r9,r8)')
+
+define(PUT_VOID, `
+   clrlwi	$1,hp,3		# clear tag bits
+   stw		$1,0(hp)	# put new var on heap
+   addi		hp,hp,4		# increment heap
+   li		r12,0		# load zero
+   stw		r12,0(hp)	# clear in case of constraint marker')
+
+define(PUT_VOID_TCB, `
+   lbzu		r9,1(ppc)
+   PUT_VOID(r8)
+   PUT_IN_TCB_REG(r9,r8)')
+
+define(PUT_VARP, `
+   lbzu		r12,1(ppc)	# get env offset
+   clrlwi	$1,hp,3		# clear tag bits and put in reg
+   rlwinm	r12,r12,2,22,31	# multiply env offset by 4
+   stwx		$1,ce,r12	# put var into current env
+   stw		$1,0(hp)	# put var on hp
+   addi		hp,hp,4		# increment hp
+   li		r12,0		# load zero
+   stw		r12,0(hp)	# clear in case of constraint marker')
+
+define(PUT_VARP_TCB, `
+   lbzu		r9,1(ppc)
+   PUT_VARP(r8)
+   PUT_IN_TCB_REG(r9,r8)')
+
+define(PUSH_VART, `
+   clrlwi	$1,hp,3		# make a var and place in reg
+   stw		$1,0(hp)	# put var on hp
+   addi		hp,hp,4		# increment hp
+   li		r12,0		# load zero
+   stw		r12,0(hp)	# clear in case of constraint marker')
+
+define(PUSH_VART_TCB, `
+   lbzu		r9,1(ppc)
+   PUSH_VART(r8)
+   PUT_IN_TCB_REG(r9,r8)')
+
+define(PUSH_VARP, `
+   clrlwi	r12,hp,3	# make a variable
+   rlwinm	$1,$1,2,0,31	# multiply env offset by 4
+   stwx		r12,ce,$1	# store var in env
+   stw		r12,0(hp)	# store var in hp
+   addi		hp,hp,4		# increment hp
+   li		r12,0
+   stw		r12,0(hp)	# clear in case of constraint marker
+   b		InterpreterLoop')
+
+define(PUSH_VARP_TCB, `
+   lbzu		r9,1(ppc)
+   PUSH_VARP(r9)')
+
+define(PUSH_VALT, `
+   stw		$1,0(hp)	# push reg onto hp
+   addi		hp,hp,4		# increment hp
+   li		r12,0		# load zero
+   stw		r12,0(hp)	# clear in case of constraint marker')
+
+define(PUSH_VALT_TCB, `
+   lbzu		r9,1(ppc)
+   addi		r12,temp,124
+   rlwinm	r9,r9,2,22,31
+   lwzx		r9,r12,r9
+   PUSH_VALT(r9)')
+
+define(PUSH_VALP, `
+   rlwinm	$1,$1,2,22,31	# multiply env offset by 4
+   lwzx		r12,ce,$1	# get env var
+   stw		r12,0(hp)	# store env var on hp
+   addi		hp,hp,4
+   li		r12,0
+   stw		r12,0(hp)')
+
+define(PUSH_VALP_TCB, `
+   lbzu		r9,1(ppc)
+   PUSH_VALP(r9)')
+
+define(TPUSH_VART, `
+   clrlwi	r12,hp,3	# clear top bits
+   oris		$1,r12,LISTTAG
+   stw		hp,0(hp)
+   addi		hp,hp,4
+   li		r12,0
+   stw		r12,0(hp)')
+
+define(TPUSH_VART_TCB, `
+   lbzu		r9,1(ppc)
+   TPUSH_VART(r8)
+   PUT_IN_TCB_REG(r9,r8)')
+
+define(TPUSH_VARP, `
+   clrlwi	r12,hp,3
+   rlwinm	$1,$1,2,22,31
+   oris		r12,r12,LISTTAG
+   stwx		r12,ce,$1
+   stw		hp,0(hp)
+   addi		hp,hp,4
+   li		r12,0
+   stw		r12,0(hp)')
+
+define(TPUSH_VARP_TCB, `
+   lbzu		r9,1(ppc)
+   TPUSH_VARP(r9)')
+
+define(TPUSH_VALT, `
+   clrlwi	r12,$1,3	# strip tag bits
+   oris		r12,r12,0x2000	# put in address bits (same as TVTAG)
+   stw		r12,0(hp)	# store on hp
+   addi		hp,hp,4
+   li		r12,0
+   stw		r12,0(hp)')
+
+define(TPUSH_VALT_TCB, `
+   lbzu		r9,1(ppc)
+   addi		r12,temp,124
+   rlwinm	r9,r9,2,22,31
+   lwzx		r9,r12,r9
+   TPUSH_VALT(r9)')
+
+define(TPUSH_VALP, `
+   rlwinm	$1,$1,2,22,31
+   lwzx		r12,ce,$1
+   clrlwi	r12,r12,3
+   oris		r12,r12,0x2000
+   stw		r12,0(hp)
+   addi		hp,hp,4
+   li		r12,0
+   stw		r12,0(hp)')
+
+define(TPUSH_VALP_TCB, `
+   lbzu		r9,1(ppc)
+   TPUSH_VALP(r9)')
+
+define(PUT_VALT, `
+   mr		$1,$2		# put $2 into $1')
+
+define(PUT_VALT_ARG1, `
+   lbzu		r11,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r11,r11,2,22,31
+   stwx		$1,r10,r11')
+
+define(PUT_VALT_ARG2, `
+   lbzu		r11,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r11,r11,2,22,31
+   lwzx		$1,r10,r11')
+
+define(PUT_VALT_TCB, `
+   lbzu		r11,1(ppc)
+   lbzu		r12,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r12,r12,2,22,31
+   lwzx		r9,r10,r12
+   rlwinm	r11,r11,2,22,31
+   stwx		r9,r10,r11')
+
+define(PUT_VALP, `
+   rlwinm	$2,$2,2,22,31
+   lwzx		$1,ce,$2')
+
+define(PUT_VALP_ARG1, `
+   PUT_VALP(r12,$1)
+   lbzu		r11,1(ppc)
+   addi		r10,temp,124
+   rlwinm	r11,r11,2,22,31
+   stwx		r12,r10,r11')
+
+define(PUT_VALP_ARG2, `
+   lbzu		r12,1(ppc)
+   PUT_VALP($1,r12)')
+
+define(PUT_VALP_TCB, `
+   lbzu		r8,1(ppc)
+   lbzu		r9,1(ppc)
+   PUT_VALP(r10,r9)
+   PUT_IN_TCB_REG(r8,r10)')
+
